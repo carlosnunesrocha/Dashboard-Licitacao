@@ -1,0 +1,100 @@
+// Prisma schema
+// Dev local: SQLite (provider abaixo). Em produção (Docker Swarm) trocar provider
+// para "postgresql" e apontar DATABASE_URL para o Postgres do stack.
+// Status e portais são strings (constantes em TS) para manter compatibilidade
+// entre SQLite e Postgres.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String      @id @default(cuid())
+  email                String      @unique
+  nome                 String
+  senhaHash            String
+  role                 String      @default("membro")
+  responsavelLicitacoes Licitacao[]
+  statusHistorico      StatusHistory[]
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+}
+
+model Licitacao {
+  id           String    @id @default(cuid())
+  orgao        String
+  objeto       String
+  modalidade   String?
+  valorEstimado Decimal? // @db.Decimal(18, 2) - em Postgres adicionar aqui
+  dataAbertura DateTime?
+  dataLimite   DateTime? // prazo para participação
+  portalOrigem String // pncp | licitar-digital | bnc-compras | bll-compras | caixa-escolar
+  externalId   String // id no portal de origem (deduplicação)
+  urlOriginal  String?
+  status       String    @default("EM_ANALISE") // colunas do Kanban
+  resultado    String? // GANHOU | PERDEU
+  responsavelId String?
+  responsavel  User?     @relation(fields: [responsavelId], references: [id], onDelete: SetNull)
+  observacoes  String?
+  historico    StatusHistory[]
+
+  // Chaves do portal de origem necessárias para buscar os detalhes
+  // (Caixa Escolar exige subprogram/school/budget/supplier nas rotas de detalhe)
+  idSubprogram Int?
+  idSchool     Int?
+  idSupplier   Int?
+
+  // Detalhes buscados sob demanda na primeira abertura do card
+  detalhamento            String?   // descrição/justificativa da solicitação
+  valorTotalProposta      Decimal?  // soma da proposta da nossa empresa
+  empresaVencedora        String?   // preenchido quando perdemos
+  valorVencedor           Decimal?
+  detalhesSincronizadosEm DateTime? // null = detalhes ainda não buscados
+  itens                   LicitacaoItem[]
+
+  // Marcado quando o registro deixa de aparecer no portal de origem (ex: a
+  // escola removeu o orçamento). Mantemos o histórico em vez de apagar, mas
+  // o card sai do board e não tenta mais buscar detalhes.
+  desaparecidoEm DateTime?
+
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([portalOrigem, externalId])
+}
+
+model LicitacaoItem {
+  id              String    @id @default(cuid())
+  licitacaoId     String
+  licitacao       Licitacao @relation(fields: [licitacaoId], references: [id], onDelete: Cascade)
+  ordem           Int
+  descricao       String
+  tipo            String?
+  unidade         String?
+  quantidade      Decimal?
+  valorReferencia Decimal?
+  valorUnitario   Decimal?
+  observacoes     String?
+  garantiaOfertada String?
+  garantiaExigida  String?
+
+  @@index([licitacaoId])
+}
+
+model StatusHistory {
+  id            String    @id @default(cuid())
+  licitacaoId   String
+  licitacao     Licitacao @relation(fields: [licitacaoId], references: [id], onDelete: Cascade)
+  statusAnterior String?
+  statusNovo    String
+  userId        String?
+  usuario       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  alteradoEm    DateTime  @default(now())
+
+  @@index([licitacaoId])
+}

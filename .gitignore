@@ -1,0 +1,89 @@
+# ---------------------------------------------------------------------------
+# SEGREDOS — nunca versionar.
+# As credenciais aqui são de portais reais (Caixa Escolar, LicitarDigital,
+# BNC, BLL) e o token do LicitarDigital não tem expiração. Segredo publicado
+# precisa ser ROTACIONADO, não apagado: remover o commit depois não resolve.
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# ---------------------------------------------------------------------------
+# DADOS REAIS DA EMPRESA — licitações disputadas, ganhas, perdidas e valores.
+# Informação competitiva: não vai para repositório, nem privado.
+# ---------------------------------------------------------------------------
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+backend/prisma/*.db
+backend/prisma/migrations/dev.db*
+
+# Pontos de restauração locais (contêm cópia do banco)
+.checkpoints/
+
+# Cookies de sessão gravados pelo curl/libcurl durante a investigação.
+# backend/cookies.txt tinha um sessionToken vivo da Caixa Escolar.
+cookies.txt
+**/cookies.txt
+*.cookies
+
+# Capturas do Playwright MCP: screenshots e dumps de página de sessões
+# LOGADAS nos portais. Contêm dados da empresa visíveis na tela.
+.playwright-mcp/
+
+# ---------------------------------------------------------------------------
+# Dependências e build
+# ---------------------------------------------------------------------------
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+coverage/
+.nyc_output/
+
+# Prisma gerado
+backend/src/generated/
+**/generated/prisma/
+
+# ---------------------------------------------------------------------------
+# Artefatos de investigação e ferramentas locais
+# ---------------------------------------------------------------------------
+# Capturas das sondas do LicitarDigital: screenshots da área logada e JSON com
+# dados reais da empresa. Os scripts .py ficam versionados; as saídas, não.
+scripts/out/
+
+# Grafo gerado pelo graphify (reconstituível com `graphify update .`)
+graphify-out/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+console-*.log
+
+# ---------------------------------------------------------------------------
+# Sistema operacional e editores
+# ---------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+
+# Temporários
+tmp/
+temp/
+*.tmp
