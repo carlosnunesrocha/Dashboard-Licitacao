@@ -87,3 +87,7 @@ desktop.ini
 tmp/
 temp/
 *.tmp
+
+# Configuracao local do Claude Code: muda conforme o uso (permissoes
+# concedidas), e e por maquina, nao do projeto. O settings.json fica.
+.claude/settings.local.json
