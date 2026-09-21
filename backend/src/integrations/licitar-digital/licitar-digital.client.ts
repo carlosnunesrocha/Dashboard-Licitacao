@@ -54,6 +54,45 @@ export interface SearchPage {
   meta: { count: number; limit: number; offset: number };
 }
 
+/** Detalhe do processo — `getAuctionNoticeById` devolve ~39 campos. */
+export interface AuctionDetail {
+  processNumber: string | null;
+  processType: string | null;
+  purcharseNumber: string | null; // grafia do portal, com o typo
+  simpleDescription: string | null;
+  biddingStageId: number | null;
+  isFinished: boolean;
+  isCanceled: boolean;
+  publishedDate: string | null;
+  startDateTimeDispute: string | null;
+  startDateTimeToSendProposal: string | null;
+  endDateTimeToSendProposal: string | null;
+  pncpLink: string | null;
+  organizationUnit?: { organizationUnitName?: string | null } | null;
+}
+
+/** Um lote do processo. O portal organiza por lote, não por item solto. */
+export interface AuctionLot {
+  id: number;
+  item: number;
+  lotDescription: string | null;
+  referenceValue: number | null;
+  /** 0 = o portal esconde o valor de referência nesta licitação. */
+  showReferenceValue: number;
+  status: string | null;
+  lotStage: string | null;
+  isItDesert: number;
+  isItFrustrated: number;
+  winnerProviderId: number | null;
+}
+
+export interface Provider {
+  id: number;
+  companyName: string | null;
+  tradingName: string | null;
+  docNumber: string | null;
+}
+
 /** Visões da listagem. `proposal` = a empresa enviou proposta. */
 export type ShortFilter = 'proposal' | 'favorite';
 
@@ -65,6 +104,8 @@ interface RespostaCurl {
 export class LicitarDigitalClient {
   private readonly logger = new Logger(LicitarDigitalClient.name);
   private readonly authorization: string;
+  private readonly fornecedores = new Map<number, Provider | null>();
+  private providerIdCache: number | null | undefined;
 
   constructor(token: string) {
     // A API exige o prefixo: o JWT cru responde
@@ -86,10 +127,86 @@ export class LicitarDigitalClient {
       offset,
     });
 
-    const { status, corpo } = await this.curl(
-      `${MANAGER_API}/auction-notice/doSearchAuctionNotice`,
-      body,
+    const json = await this.chamar<SearchPage>(
+      '/auction-notice/doSearchAuctionNotice',
+      JSON.parse(body),
     );
+    if (!json?.data || !json?.meta) {
+      throw new Error('LicitarDigital: resposta sem data/meta — formato inesperado');
+    }
+    return json;
+  }
+
+  /** Detalhe do processo. Note que o parâmetro é `auctionId`, não `id`. */
+  async buscarProcesso(auctionId: number): Promise<AuctionDetail> {
+    const json = await this.chamar<{ data?: AuctionDetail } & AuctionDetail>(
+      '/auction-notice/getAuctionNoticeById',
+      { auctionId },
+    );
+    return (json.data ?? json) as AuctionDetail;
+  }
+
+  /**
+   * Lotes do processo. O corpo exige o envelope `params` — sem ele a API
+   * responde 422 {"errors":{"params":{"isObject":"params must be an object"}}}.
+   */
+  async buscarLotes(auctionId: number): Promise<AuctionLot[]> {
+    const json = await this.chamar<{ data?: AuctionLot[] } | AuctionLot[]>(
+      '/auction-notice-lot/listLotsbyAuctionId',
+      { params: { auctionId } },
+    );
+    const lista = Array.isArray(json) ? json : (json.data ?? []);
+    return lista;
+  }
+
+  /**
+   * Nome de um fornecedor. Com cache por instância: uma licitação com vários
+   * lotes costuma ter o mesmo vencedor, e não vale uma chamada por lote.
+   */
+  async buscarFornecedor(providerId: number): Promise<Provider | null> {
+    const emCache = this.fornecedores.get(providerId);
+    if (emCache !== undefined) return emCache;
+
+    let provider: Provider | null = null;
+    try {
+      const json = await this.chamar<{ data?: Provider } & Provider>(
+        '/providers/getProviderById',
+        { providerId },
+      );
+      provider = (json.data ?? json) as Provider;
+    } catch (err) {
+      // Nome do vencedor é acessório: sem ele o detalhe ainda vale.
+      this.logger.warn(
+        `LicitarDigital: não consegui resolver o fornecedor ${providerId} — ${(err as Error).message}`,
+      );
+    }
+    this.fornecedores.set(providerId, provider);
+    return provider;
+  }
+
+  /**
+   * `providerId` da empresa, lido do próprio JWT — evita mais uma variável de
+   * ambiente que poderia divergir do token. Payload apenas; assinatura não é
+   * verificada aqui (quem valida é a API).
+   */
+  get providerId(): number | null {
+    if (this.providerIdCache !== undefined) return this.providerIdCache;
+
+    let valor: number | null = null;
+    try {
+      const payload = this.authorization.replace(/^Bearer\s+/i, '').split('.')[1];
+      const claims = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+      if (typeof claims.providerId === 'number') valor = claims.providerId;
+    } catch {
+      // Token fora do formato esperado: sem providerId não dá para saber se
+      // fomos nós que vencemos, mas o resto do detalhe continua válido.
+    }
+    this.providerIdCache = valor;
+    return valor;
+  }
+
+  private async chamar<T>(rota: string, body: unknown): Promise<T> {
+    const { status, corpo } = await this.curl(`${MANAGER_API}${rota}`, JSON.stringify(body));
 
     if (status === 401 || status === 403) {
       throw new Error(
@@ -97,21 +214,13 @@ export class LicitarDigitalClient {
       );
     }
     if (status < 200 || status >= 300) {
-      throw new Error(
-        `LicitarDigital: HTTP ${status} em doSearchAuctionNotice — ${corpo.slice(0, 200)}`,
-      );
+      throw new Error(`LicitarDigital: HTTP ${status} em ${rota} — ${corpo.slice(0, 200)}`);
     }
-
-    let json: SearchPage;
     try {
-      json = JSON.parse(corpo) as SearchPage;
+      return JSON.parse(corpo) as T;
     } catch {
-      throw new Error('LicitarDigital: resposta não é JSON — formato inesperado');
+      throw new Error(`LicitarDigital: resposta de ${rota} não é JSON — formato inesperado`);
     }
-    if (!json?.data || !json?.meta) {
-      throw new Error('LicitarDigital: resposta sem data/meta — formato inesperado');
-    }
-    return json;
   }
 
   /**

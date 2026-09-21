@@ -529,6 +529,29 @@ input:focus, select:focus, textarea:focus {
   font-size: 11px;
 }
 
+/* Situação e vencedor do lote, mostrados sob a descrição quando o portal não
+   expõe a nossa proposta (LicitarDigital). */
+.itens-table .item-observacao {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  margin-top: 3px;
+  line-height: 1.35;
+}
+
+/* Explica uma seção vazia por limitação do portal, em vez de deixar a tabela
+   em branco parecendo defeito. */
+.aviso-indisponivel {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  background: var(--surface-2, rgba(127, 127, 127, 0.06));
+  border-left: 3px solid var(--border, rgba(127, 127, 127, 0.25));
+  border-radius: 4px;
+  margin: 0;
+}
+
 .detalhamento-texto {
   white-space: pre-wrap;
   background: #f7f6f9;
