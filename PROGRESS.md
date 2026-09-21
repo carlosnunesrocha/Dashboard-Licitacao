@@ -401,6 +401,37 @@ O teclado virtual do BNC não é detecção de bot: cada botão vale dois dígit
 ("6 ou 0"). Nenhum bypasser de WAF muda isso. Por isso a skill **não**
 substitui o caminho da chave de acesso no BNC — ver seção abaixo.
 
+### 🎯 PRÓXIMA SESSÃO (2026-09-22): BNC e BLL
+
+O LicitarDigital ensinou uma receita que provavelmente se aplica aqui. O que
+o destravou **não foi vencer o login** — foi contorná-lo:
+
+1. **O host da API não era o óbvio.** Supúnhamos `api.licitardigital.com.br`
+   (404 em tudo); era `manager-api.licitardigital.com.br`. Para o BNC, não
+   presumir o host: descobrir.
+2. **O Cloudflare era regra de cabeçalho**, não desafio JS. Testar isso cedo
+   com `curl`: com `Origin`/`Referer`/`User-Agent` de navegador vs. sem.
+3. **O token veio do `localStorage`**, não de login automatizado. O BNC tem
+   algo melhor: uma **chave de acesso já gerada** pelo usuário.
+4. **O bundle JS do SPA entrega as rotas.** `curl` no `index-*.js` e
+   `grep -oE '"/[a-z-]+/[a-zA-Z]+"'` listou 25 rotas do LicitarDigital sem
+   tocar no portal. Fazer o mesmo no BNC antes de qualquer captura manual.
+5. **Node é bloqueado por fingerprint TLS** onde curl e Python passam. Se o
+   BNC também for, a solução já existe: transporte via `curl` (ver
+   `licitar-digital.client.ts`).
+
+⚠️ O login automatizado do BNC continua inviável (reCAPTCHA Enterprise +
+teclado virtual ambíguo). **Não reabrir Playwright nem pydoll no login.**
+
+**Primeira ação:** o usuário traz URL + print da tela da chave de acesso. Sem
+isso não há endpoint, e chutar rota foi o que queimou tempo em 17/09.
+
+**Critério de sucesso (inalterado):** a integração só vale se expuser as
+licitações **da empresa**. O `/Process/ProcessSearchPublic` do BNC é acessível
+sem login mas devolve o universo geral — prospecção, fora do escopo.
+
+BLL usa a mesma plataforma do BNC: resolver um resolve os dois.
+
 ### 🔄 BNC — chave de acesso gerada (aguardando item 1 desde 2026-09-18)
 
 O usuário **já gerou uma chave de acesso** na área logada do BNC. A tela **não
