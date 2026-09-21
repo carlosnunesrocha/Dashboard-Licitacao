@@ -71,6 +71,26 @@ function item(over: Record<string, unknown> = {}) {
 
 const NOSSO_FORNECEDOR = 777;
 
+/**
+ * Monta o argumento de fetchDetalhes. A assinatura passou de quatro inteiros
+ * para a licitação inteira, para que portais sem as chaves da Caixa Escolar
+ * também possam implementar detalhes.
+ */
+function alvo(
+  idSubprogram: number | null,
+  idSchool: number | null,
+  externalId: number,
+  idSupplier: number | null,
+) {
+  return {
+    externalId: String(externalId),
+    portalOrigem: 'caixa-escolar',
+    idSubprogram,
+    idSchool,
+    idSupplier,
+  };
+}
+
 function criar() {
   const config = {
     get: vi.fn((k: string) =>
@@ -106,7 +126,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
       itens: { data: [item()] },
     });
 
-    const d = await adapter.fetchDetalhes(1, 2, 3, NOSSO_FORNECEDOR);
+    const d = await adapter.fetchDetalhes(alvo(1, 2, 3, NOSSO_FORNECEDOR));
 
     expect(d.detalhamento).toBe('Aquisição de material de escritório');
     expect(d.itens).toHaveLength(1);
@@ -123,7 +143,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
   it('monta as URLs com subprograma, escola, orçamento e fornecedor', async () => {
     const adapter = cenario({ budget: {}, itens: { data: [] } });
 
-    await adapter.fetchDetalhes(11, 22, 33, 44);
+    await adapter.fetchDetalhes(alvo(11, 22, 33, 44));
 
     const urls = fetchMock.mock.calls.map((c) => String(c[0]));
     expect(urls.some((u) => u.includes('by-subprogram/11/by-school/22/by-budget/33'))).toBe(true);
@@ -133,7 +153,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
   it('faz login quando ainda não há sessão', async () => {
     const adapter = cenario({ budget: {}, itens: { data: [] } });
 
-    await adapter.fetchDetalhes(1, 2, 3, NOSSO_FORNECEDOR);
+    await adapter.fetchDetalhes(alvo(1, 2, 3, NOSSO_FORNECEDOR));
 
     expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/auth/login'))).toBe(true);
   });
@@ -147,7 +167,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
         itens: { data: [item({ nuValueByItem: 22, nuQuantity: '10' })] },
       });
 
-      const d = await adapter.fetchDetalhes(1, 2, 3, NOSSO_FORNECEDOR);
+      const d = await adapter.fetchDetalhes(alvo(1, 2, 3, NOSSO_FORNECEDOR));
 
       expect(d.valorTotalProposta).toBe(220);
       expect(d.empresaVencedora).toBeNull();
@@ -168,7 +188,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
         itens: { data: [item()] },
       });
 
-      const d = await adapter.fetchDetalhes(1, 2, 3, NOSSO_FORNECEDOR);
+      const d = await adapter.fetchDetalhes(alvo(1, 2, 3, NOSSO_FORNECEDOR));
 
       expect(d.empresaVencedora).toBe('Concorrente Ltda');
       expect(d.valorVencedor).toBe(180);
@@ -184,7 +204,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
         itens: { data: [item()] },
       });
 
-      const d = await adapter.fetchDetalhes(1, 2, 3, NOSSO_FORNECEDOR);
+      const d = await adapter.fetchDetalhes(alvo(1, 2, 3, NOSSO_FORNECEDOR));
 
       expect(d.empresaVencedora).toBeNull();
       expect(d.valorVencedor).toBeNull();
@@ -199,7 +219,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
       itens: { data: [item({ txDescription: 'Caderno universitÃ¡rio' })] },
     });
 
-    const d = await adapter.fetchDetalhes(1, 2, 3, NOSSO_FORNECEDOR);
+    const d = await adapter.fetchDetalhes(alvo(1, 2, 3, NOSSO_FORNECEDOR));
 
     expect(d.detalhamento).toBe('Aquisição de materiais');
     expect(d.itens[0].descricao).toBe('Caderno universitário');
@@ -208,7 +228,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
   it('falha de forma explícita se o orçamento não existe no portal', async () => {
     const adapter = cenario({ budget: null, itens: { data: [] } });
 
-    await expect(adapter.fetchDetalhes(1, 2, 3, NOSSO_FORNECEDOR)).rejects.toThrow(
+    await expect(adapter.fetchDetalhes(alvo(1, 2, 3, NOSSO_FORNECEDOR))).rejects.toThrow(
       /não encontrado/i,
     );
   });
@@ -219,7 +239,7 @@ describe('CaixaEscolarAdapter.fetchDetalhes', () => {
       itens: { data: [item({ txDescription: null })] },
     });
 
-    const d = await adapter.fetchDetalhes(1, 2, 3, NOSSO_FORNECEDOR);
+    const d = await adapter.fetchDetalhes(alvo(1, 2, 3, NOSSO_FORNECEDOR));
 
     expect(d.itens[0].descricao).toBe('Sem descrição');
   });

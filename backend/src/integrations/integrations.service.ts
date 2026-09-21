@@ -32,18 +32,16 @@ export class IntegrationsService {
         `Portal '${licitacao.portalOrigem}' não suporta busca de detalhes`,
       );
     }
-    if (licitacao.idSubprogram === null || licitacao.idSchool === null || licitacao.idSupplier === null) {
-      throw new BadRequestException(
-        'Licitação sem as chaves do portal — rode uma sincronização para atualizá-la',
-      );
-    }
-
-    const detalhes = await adapter.fetchDetalhes(
-      licitacao.idSubprogram,
-      licitacao.idSchool,
-      Number(licitacao.externalId),
-      licitacao.idSupplier,
-    );
+    // A exigência das chaves idSubprogram/idSchool/idSupplier é da Caixa
+    // Escolar, não de todo portal — validá-la aqui impedia qualquer outro
+    // adaptador de implementar detalhes. Cada um valida o que precisa.
+    const detalhes = await adapter.fetchDetalhes({
+      externalId: licitacao.externalId,
+      portalOrigem: licitacao.portalOrigem,
+      idSubprogram: licitacao.idSubprogram,
+      idSchool: licitacao.idSchool,
+      idSupplier: licitacao.idSupplier,
+    });
 
     return this.licitacoes.salvarDetalhes(licitacaoId, detalhes);
   }

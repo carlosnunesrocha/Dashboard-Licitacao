@@ -1,9 +1,14 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { PortalAdapter, SyncResult } from '../types.js';
-import { LicitacoesService } from '../../licitacoes/licitacoes.service.js';
+import type { LicitacaoParaDetalhes, PortalAdapter, SyncResult } from '../types.js';
+import {
+  LicitacoesService,
+  type DetalhesLicitacao,
+} from '../../licitacoes/licitacoes.service.js';
 import {
   LicitarDigitalClient,
+  type AuctionDetail,
+  type AuctionLot,
   type AuctionNotice,
   type ShortFilter,
 } from './licitar-digital.client.js';
@@ -29,6 +34,28 @@ const FILTRO_PADRAO: ShortFilter = 'favorite';
  * não veio escopada à empresa.
  */
 const MAX_ESPERADO = 5_000;
+
+/**
+ * Códigos de situação do lote, como o portal os devolve. A lista foi montada
+ * a partir dos valores observados; qualquer código novo aparece cru no modal
+ * em vez de ser escondido — ver `traduzir()`.
+ */
+const SITUACAO_LOTE: Record<string, string> = {
+  negotiation_finished: 'Negociação encerrada',
+  negotiation: 'Em negociação',
+  dispute: 'Em disputa',
+  waiting: 'Aguardando',
+  canceled: 'Cancelado',
+  finished: 'Encerrado',
+};
+
+const FASE_LOTE: Record<string, string> = {
+  contract: 'Contratação',
+  proposal: 'Propostas',
+  dispute: 'Disputa',
+  appeal: 'Recursos',
+  qualification: 'Habilitação',
+};
 
 @Injectable()
 export class LicitarDigitalAdapter implements PortalAdapter {
@@ -175,6 +202,184 @@ export class LicitarDigitalAdapter implements PortalAdapter {
           '(flag da empresa ausente). Resposta não escopada. Sync abortado.',
       );
     }
+  }
+
+  /**
+   * Detalhes de um processo: descrição, lotes e quem venceu.
+   *
+   * Duas ausências, ambas do portal e não do código:
+   * - **Nossa proposta item a item não vem daqui.** A API do painel
+   *   (`app2`) não a expõe; ela vive em `app.licitardigital.com.br`, ainda
+   *   não mapeada. Por isso `valorTotalProposta` é nulo.
+   * - O portal organiza por **lote**, não por item solto, então cada "item"
+   *   do modal é um lote — sem unidade nem quantidade.
+   */
+  async fetchDetalhes(licitacao: LicitacaoParaDetalhes): Promise<DetalhesLicitacao> {
+    const token = this.config.get<string>('LICITAR_DIGITAL_TOKEN');
+    if (!token) {
+      throw new BadRequestException(
+        'LicitarDigital: token não configurado. Defina LICITAR_DIGITAL_TOKEN no .env',
+      );
+    }
+
+    const auctionId = Number(licitacao.externalId);
+    if (!Number.isFinite(auctionId)) {
+      throw new BadRequestException(
+        `LicitarDigital: externalId '${licitacao.externalId}' não é numérico`,
+      );
+    }
+
+    const client = new LicitarDigitalClient(token);
+    const [processo, lotes] = await Promise.all([
+      client.buscarProcesso(auctionId),
+      client.buscarLotes(auctionId),
+    ]);
+
+    const nosso = client.providerId;
+    // Um processo costuma ter ampla concorrência + cota reservada ME/EPP, com
+    // vencedores DIFERENTES. Resolve o nome de cada um (o client faz cache).
+    const vencedores = await this.resolverVencedores(client, lotes);
+
+    return {
+      detalhamento: this.montarDetalhamento(processo),
+      // O portal não expõe a nossa proposta nesta API.
+      valorTotalProposta: null,
+      empresaVencedora: this.vencedorPrincipal(lotes, vencedores, nosso),
+      valorVencedor: null,
+      itens: lotes.map((lote, i) => ({
+        // Índice sequencial, não `lote.item`: lotes complementares do mesmo
+        // item compartilham o número, e duas linhas "1" pareceriam defeito.
+        ordem: i + 1,
+        descricao: this.montarDescricaoLote(lote, lotes),
+        tipo: null,
+        unidade: null,
+        quantidade: null,
+        // showReferenceValue = 0 significa que o portal esconde o valor nesta
+        // licitação; exibi-lo mostraria algo que o próprio portal não mostra.
+        valorReferencia: lote.showReferenceValue ? lote.referenceValue : null,
+        valorUnitario: null,
+        observacoes: this.montarSituacaoLote(lote, vencedores, nosso),
+        garantiaOfertada: null,
+        garantiaExigida: null,
+      })),
+    };
+  }
+
+  /** providerId → nome, para todos os vencedores do processo. */
+  private async resolverVencedores(
+    client: LicitarDigitalClient,
+    lotes: AuctionLot[],
+  ): Promise<Map<number, string>> {
+    const ids = [...new Set(lotes.map((l) => l.winnerProviderId).filter((id): id is number => !!id))];
+    const nomes = new Map<number, string>();
+
+    await Promise.all(
+      ids.map(async (id) => {
+        const f = await client.buscarFornecedor(id);
+        nomes.set(id, f?.companyName?.trim() || f?.tradingName?.trim() || `Fornecedor ${id}`);
+      }),
+    );
+    return nomes;
+  }
+
+  /**
+   * `DetalhesLicitacao` comporta um único vencedor, mas o processo pode ter
+   * vários. Escolhe o primeiro que não seja a nossa empresa — o caso que
+   * interessa ao board ("quem nos ganhou"). O vencedor de cada lote aparece
+   * individualmente em `observacoes`.
+   */
+  private vencedorPrincipal(
+    lotes: AuctionLot[],
+    nomes: Map<number, string>,
+    nosso: number | null,
+  ): string | null {
+    const deOutro = lotes.find((l) => l.winnerProviderId && l.winnerProviderId !== nosso);
+    return deOutro?.winnerProviderId ? (nomes.get(deOutro.winnerProviderId) ?? null) : null;
+  }
+
+  /**
+   * Quando lotes compartilham o mesmo número de item (ampla concorrência e
+   * cota reservada do mesmo objeto), o número sozinho não distingue — então
+   * ele entra no texto para deixar claro que a repetição é do portal.
+   */
+  private montarDescricaoLote(lote: AuctionLot, todos: AuctionLot[]): string {
+    const base = lote.lotDescription?.trim() || 'Sem descrição';
+    const repetido = todos.filter((l) => l.item === lote.item).length > 1;
+    return repetido ? `Lote ${lote.item} · ${base}` : base;
+  }
+
+  private montarDetalhamento(p: AuctionDetail): string | null {
+    const linhas: string[] = [];
+    if (p.simpleDescription?.trim()) linhas.push(p.simpleDescription.trim());
+
+    const ficha: string[] = [];
+    if (p.processNumber) ficha.push(`Processo nº ${p.processNumber}`);
+    if (p.purcharseNumber) ficha.push(`Compra nº ${p.purcharseNumber}`);
+    if (p.organizationUnit?.organizationUnitName) {
+      ficha.push(p.organizationUnit.organizationUnitName);
+    }
+    if (ficha.length) linhas.push(ficha.join(' · '));
+
+    const prazos: string[] = [];
+    if (p.startDateTimeToSendProposal) {
+      prazos.push(`Propostas a partir de ${this.data(p.startDateTimeToSendProposal)}`);
+    }
+    if (p.endDateTimeToSendProposal) {
+      prazos.push(`até ${this.data(p.endDateTimeToSendProposal)}`);
+    }
+    if (p.startDateTimeDispute) prazos.push(`Disputa em ${this.data(p.startDateTimeDispute)}`);
+    if (prazos.length) linhas.push(prazos.join(' · '));
+
+    if (p.isCanceled) linhas.push('⚠️ Processo cancelado pelo órgão.');
+    if (p.pncpLink) linhas.push(`PNCP: ${p.pncpLink}`);
+
+    return linhas.length ? linhas.join('\n\n') : null;
+  }
+
+  /**
+   * Situação do lote em texto — o modal não tem campo próprio para isso.
+   *
+   * Inclui o vencedor DESTE lote: é o que diferencia lotes complementares do
+   * mesmo item, e o campo `empresaVencedora` só comporta um.
+   */
+  private montarSituacaoLote(
+    lote: AuctionLot,
+    nomes: Map<number, string>,
+    nosso: number | null,
+  ): string | null {
+    const partes: string[] = [];
+    if (lote.isItDesert) partes.push('Deserto');
+    if (lote.isItFrustrated) partes.push('Fracassado');
+
+    const situacao = this.traduzir(lote.status, SITUACAO_LOTE);
+    if (situacao) partes.push(`Situação: ${situacao}`);
+
+    const fase = this.traduzir(lote.lotStage, FASE_LOTE);
+    if (fase) partes.push(`Fase: ${fase}`);
+
+    if (lote.winnerProviderId) {
+      partes.push(
+        lote.winnerProviderId === nosso
+          ? '🏆 Vencemos este lote'
+          : `Vencedor: ${nomes.get(lote.winnerProviderId) ?? lote.winnerProviderId}`,
+      );
+    }
+    return partes.length ? partes.join(' · ') : null;
+  }
+
+  /**
+   * Traduz os códigos do portal. Valor desconhecido é devolvido cru em vez de
+   * virar "—": esconder o que não se conhece é pior do que mostrar em inglês,
+   * porque some a informação e ninguém percebe que falta tradução.
+   */
+  private traduzir(valor: string | null, mapa: Record<string, string>): string | null {
+    if (!valor) return null;
+    return mapa[valor] ?? valor;
+  }
+
+  private data(iso: string): string {
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? iso : d.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
   }
 
   private montarOrgao(item: AuctionNotice): string {

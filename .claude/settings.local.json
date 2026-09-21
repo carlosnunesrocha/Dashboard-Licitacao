@@ -72,7 +72,11 @@
       "Read(//tmp/**)",
       "Bash(curl -s https://app2.licitardigital.com.br/assets/index-B26JKyU9.js -H 'User-Agent: Mozilla/5.0 \\(Windows NT 10.0; Win64; x64\\) AppleWebKit/537.36 \\(KHTML, like Gecko\\) Chrome/140.0.0.0 Safari/537.36' --max-time 120 -o app.js)",
       "Bash(wc -c)",
-      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://api.github.com/repos/carlosnunesrocha/Dashboard-Licitacao\" --max-time 25)"
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" \"https://api.github.com/repos/carlosnunesrocha/Dashboard-Licitacao\" --max-time 25)",
+      "Bash(xargs -I{} echo \"chamadas convertidas: {}\")",
+      "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:5173/ --max-time 15)",
+      "Bash(curl -s \"http://localhost:5173/src/index.css\" --max-time 15)",
+      "Bash(xargs -I{} echo \"  ocorrencias encontradas: {} \\(esperado 2\\)\")"
     ]
   }
 }

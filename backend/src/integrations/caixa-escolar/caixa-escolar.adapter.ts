@@ -1,6 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import type { PortalAdapter, SyncResult } from '../types.js';
+import type { LicitacaoParaDetalhes, PortalAdapter, SyncResult } from '../types.js';
 import { LicitacoesService } from '../../licitacoes/licitacoes.service.js';
 
 const API_BASE = 'https://api.caixaescolar.educacao.mg.gov.br';
@@ -202,12 +202,18 @@ export class CaixaEscolarAdapter implements PortalAdapter {
    * itens com a nossa proposta, e (quando perdemos) quem venceu e por quanto.
    * Faz login se ainda não houver sessão ativa.
    */
-  async fetchDetalhes(
-    idSubprogram: number,
-    idSchool: number,
-    idBudget: number,
-    idSupplier: number,
-  ): Promise<LicitacaoDetalhes> {
+  async fetchDetalhes(licitacao: LicitacaoParaDetalhes): Promise<LicitacaoDetalhes> {
+    // Estas três chaves são deste portal e vêm da sincronização. A validação
+    // ficava em IntegrationsService, mas lá ela bloqueava todos os portais;
+    // aqui fica com quem de fato precisa delas.
+    const { idSubprogram, idSchool, idSupplier } = licitacao;
+    if (idSubprogram === null || idSchool === null || idSupplier === null) {
+      throw new BadRequestException(
+        'Licitação sem as chaves do portal — rode uma sincronização para atualizá-la',
+      );
+    }
+    const idBudget = Number(licitacao.externalId);
+
     if (!this.sessionCookie) {
       const user = this.config.get<string>('CAIXA_ESCOLAR_USER');
       const pass = this.config.get<string>('CAIXA_ESCOLAR_PASS');

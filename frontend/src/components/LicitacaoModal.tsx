@@ -95,6 +95,13 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
   // acompanhar é a proposta que mandamos, então só a seção 3 é exibida.
   const somenteProposta = licitacao.status === 'PROPOSTA_ENVIADA';
 
+  // O LicitarDigital não expõe a nossa proposta na API do painel do
+  // fornecedor. Sem esta checagem a seção 3 renderizaria uma tabela inteira
+  // de traços, dando a entender que enviamos uma proposta em branco.
+  const temProposta = itens.some(
+    (item) => item.valorUnitario !== null || item.quantidade !== null,
+  );
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal-card licitacao-modal" onClick={(e) => e.stopPropagation()}>
@@ -188,6 +195,12 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
                         <td>
                           <strong>{item.tipo || '—'}</strong>
                           <span className="item-descricao">{item.descricao}</span>
+                          {/* Situação e vencedor do lote. No LicitarDigital é
+                              o que distingue lotes complementares do mesmo
+                              item (ampla concorrência e cota reservada). */}
+                          {!temProposta && item.observacoes && (
+                            <span className="item-observacao">{item.observacoes}</span>
+                          )}
                         </td>
                         <td>{item.unidade || '—'}</td>
                         <td>{formatQty(item.quantidade)}</td>
@@ -201,7 +214,18 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
           </>
         )}
 
-        {/* Proposta de itens */}
+        {/* Proposta de itens — omitida quando o portal não a expõe, para não
+            exibir uma tabela vazia que pareceria proposta em branco. */}
+        {!temProposta && itens.length > 0 ? (
+          <div className="modal-section">
+            <label>Nossa proposta por item</label>
+            <p className="aviso-indisponivel">
+              O {PORTAL_LABEL[licitacao.portalOrigem]} não disponibiliza os valores da nossa
+              proposta na área do fornecedor. A situação e o vencedor de cada lote estão na
+              seção anterior.
+            </p>
+          </div>
+        ) : (
         <div className="modal-section">
           <label>{somenteProposta ? 'Proposta de itens' : '3. Nossa proposta por item'}</label>
           {itens.length === 0 ? (
@@ -243,6 +267,7 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
             Valor total do orçamento: <strong>{formatCurrency(licitacao.valorTotalProposta)}</strong>
           </div>
         </div>
+        )}
 
         {licitacao.urlOriginal && (
           <div className="modal-section">

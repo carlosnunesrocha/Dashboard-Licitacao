@@ -262,6 +262,41 @@ se voltarem à visão canônica, o upsert limpa a marca.
 portal inteiro, então cada troca move dezenas de registros para dentro ou
 fora do board de uma vez.
 
+### ✅ Detalhes sob demanda do LicitarDigital (2026-09-21)
+
+`PortalAdapter.fetchDetalhes` foi **generalizado**: recebia quatro inteiros do
+domínio da Caixa Escolar (`idSubprogram, idSchool, idBudget, idSupplier`) e
+agora recebe `LicitacaoParaDetalhes` — a licitação inteira. A validação dessas
+chaves saiu de `IntegrationsService` (onde bloqueava todos os portais) para
+dentro do adaptador da Caixa Escolar, que é quem precisa delas.
+
+Antes de mexer, escritos **10 testes de regressão** da Caixa Escolar
+([caixa-escolar.adapter.spec.ts](backend/src/integrations/caixa-escolar/caixa-escolar.adapter.spec.ts)),
+que continuaram verdes depois da mudança.
+
+Endpoints usados (`manager-api`, todos POST):
+| Rota | Corpo | Devolve |
+|---|---|---|
+| `/auction-notice/getAuctionNoticeById` | `{auctionId}` | 39 campos do processo |
+| `/auction-notice-lot/listLotsbyAuctionId` | `{params:{auctionId}}` | lotes |
+| `/providers/getProviderById` | `{providerId}` | nome do vencedor |
+
+⚠️ O envelope `params` é obrigatório na rota de lotes — sem ele, 422.
+
+**O portal organiza por LOTE, não por item solto.** E um processo costuma ter
+dois lotes do mesmo item: ampla concorrência (75%) e cota reservada ME/EPP
+(25%), com **vencedores diferentes**. Por isso:
+- `ordem` usa índice sequencial, não `lote.item` (que se repete);
+- o vencedor de **cada** lote vai em `observacoes` — `empresaVencedora` só
+  comporta um;
+- `showReferenceValue = 0` é respeitado: o valor fica oculto, como no portal.
+
+**Nossa proposta item a item não vem desta API** — vive em
+`app.licitardigital.com.br`, ainda não mapeada. Por isso `valorTotalProposta`
+é nulo e o modal, em vez de renderizar uma tabela de traços que pareceria
+proposta em branco, mostra um aviso explicando a limitação
+([LicitacaoModal.tsx](frontend/src/components/LicitacaoModal.tsx)).
+
 ### ❓ Em aberto: favoritos parecem ser POR USUÁRIO
 
 O usuário relatou que o processo **79219** (inexigibilidade 035, processo 184,
