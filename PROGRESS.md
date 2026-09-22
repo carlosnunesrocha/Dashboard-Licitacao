@@ -435,6 +435,62 @@ Outras rotas vistas no HTML: `/Process/ProcessView`,
 (ler as rotas do bundle JS) **não se aplica**. O que falta é informação
 interna — daí depender da operadora.
 
+#### 🎯 Achado da operadora (2026-09-22): a tela certa é `/Proposal/ProposalSearch`
+
+A operadora indicou o caminho real: **`https://bnccompras.com/Proposal/ProposalSearch`**
+— a área **das propostas da empresa**, não a busca pública. É o escopo que o
+painel precisa.
+
+**Rota de dados descoberta a partir daí:** `POST /Proposal/GetProposalsByParams`
+(GET → 404; sem sessão → 302 para
+`/Base/DataResult?message=Você não está autenticado...`). Ou seja: **a rota
+existe, é POST e é protegida por sessão** — o 302 prova que ela reconhece
+autenticação, ao contrário dos chutes de 17/09 que davam 404.
+
+Formulário da tela (IDs = nomes dos parâmetros, padrão ASP.NET MVC model binding):
+
+| Campo | `id`/`name` | Observação |
+|---|---|---|
+| Modalidade | `fkModality` | 1 PREGÃO ELETRÔNICO · 3 DISPENSA ELETRÔNICA · 4 CONCORRÊNCIA ELETRÔNICA · 5 LEILÃO · 6 REGIME DIF. DE COMPRAS · 7 SELEÇÃO SESI/SENAI · 10 LICITAÇÃO 13.303 · 11 CREDENCIAMENTO · 12 SELEÇÃO PÚBLICA |
+| Situação | `fkStatus` | 2 GRAVADO · 3 PUBLICADO · 4 RECEPÇÃO DE PROPOSTAS · 49 AGUARDANDO DISPUTA · 5 DESERTO · 6 ANÁLISE DE PROPOSTAS · 7 DISPUTA · 16 HABILITAÇÃO · 23 ADJUDICADO · 24 HOMOLOGADO · 25 CANCELADO · 26 FRACASSADO · 27 SUSPENSO · 28 REVOGADO · 29 ANULADO · 30 EM RETIFICAÇÃO · 41 JULGAMENTO · 47 RESULTADO FINAL |
+| Início | `DateStart` | formato `dd/MM/yyyy HH:mm:ss` |
+| Fim | `DateEnd` | idem |
+
+**Mapeamento provável para o Kanban** (confirmar com dados reais):
+`4`/`49` → PROPOSTA_ENVIADA · `6`/`7`/`16`/`41` → EM_DISPUTA ·
+`23`/`24`/`47` → RESULTADO · `5`/`25`/`26`/`28`/`29` → encerrados sem
+resultado nosso. **Atenção:** "HOMOLOGADO" é o desfecho *do processo*, não
+necessariamente vitória **nossa** — ver questão em aberto abaixo.
+
+⚠️ **A busca da operadora com `fkModality=1` + `fkStatus=24` (PREGÃO
+ELETRÔNICO + HOMOLOGADO) nos últimos 6 meses não retornou nada.** Hipóteses,
+em ordem de probabilidade: (a) a janela de datas usa a data errada
+(publicação vs. disputa vs. homologação); (b) a empresa participa por outra
+modalidade (DISPENSA ELETRÔNICA é comum); (c) a tela lista só propostas em
+aberto e o histórico vive em outra aba; (d) HOMOLOGADO não é o estado final
+visível ao fornecedor. **Testar outras combinações antes de concluir
+qualquer coisa** — começar sem filtro de situação, janela curta.
+
+**O que falta para escrever o adaptador** (só o F12 da operadora resolve,
+uma captura na tela já logada, sem gerar carga no portal):
+1. **Corpo real** do `POST /Proposal/GetProposalsByParams` — os IDs acima são
+   o palpite forte, mas o form pode mandar campos extras (`Offset`,
+   `__RequestVerificationToken`, `Organization`, `Number`).
+2. **Formato da resposta** — a busca pública devolve `{html: "<tr>..."}`
+   (HTML renderizado, não JSON). Se aqui for igual, o adaptador precisa
+   fazer parse de HTML, não `JSON.parse`.
+3. **Nome do cookie de sessão** (a tela de login não emite cookie antes do
+   POST, então só aparece depois de autenticar).
+
+**Por que isso muda o quadro:** o login continua bloqueado por reCAPTCHA +
+teclado virtual, mas se a sessão for um cookie simples, vale o mesmo padrão
+do LicitarDigital — a operadora copia o cookie do navegador dela para o
+`.env`, e o sync roda via `curl`. Diferença importante: **cookie de sessão
+ASP.NET expira** (tipicamente 20–30 min de inatividade), ao contrário do JWT
+sem `exp` do LicitarDigital. Se for esse o caso, renovação manual constante
+inviabiliza o sync automático de 6h — e o caminho passa a ser importador de
+planilha, se a tela tiver botão de exportar.
+
 ⚠️ **Não reabrir:** busca web por documentação do BNC (já feita, nada útil);
 Playwright/pydoll no login (reCAPTCHA Enterprise + teclado virtual ambíguo —
 barreira deliberada); chute de subdomínio ou de rota.
