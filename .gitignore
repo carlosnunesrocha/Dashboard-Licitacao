@@ -91,3 +91,8 @@ temp/
 # Configuracao local do Claude Code: muda conforme o uso (permissoes
 # concedidas), e e por maquina, nao do projeto. O settings.json fica.
 .claude/settings.local.json
+
+# Originais das logos, largados na pasta pelo usuário. As versões que o app
+# usa vivem em frontend/src/assets/ (importadas pelo Vite, com hash no build).
+# Versionar as duas cópias garante que uma hora elas divergem.
+frontend/imagens/

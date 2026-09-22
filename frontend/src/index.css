@@ -4,12 +4,26 @@
   --bg: #f5f5f7;
   --surface: #ffffff;
   --border: #e2e1e6;
-  --accent: #6a3bff;
-  --accent-hover: #5729e0;
+  /* Laranja da referência (#ff7e00, amostrado do modelo). 7.54:1 sobre o
+     painel escuro — é a cor da interface. */
+  --accent: #ff7e00;
+  --accent-hover: #ed7400;
+  /* Laranja puro com texto branco dá só 2.55:1. Superfícies que carregam
+     texto claro usam este tom: 5.42:1, passa AA e continua laranja. */
+  --accent-strong: #a85200;
+  --accent-strong-hover: #8f4600;
+  --accent-soft: #ff7e00;
+  /* Vermelho da marca, reservado ao botão de entrar. */
+  --brand-red: #d40f00;
+  --brand-red-hover: #b80c00;
   --success: #1a9e57;
   --success-bg: #e4f8ee;
-  --danger: #d1332f;
-  --danger-bg: #fbe7e6;
+  /* Vinho, não vermelho. Desde que a marca virou vermelha, um --danger
+     vermelho ficaria idêntico ao botão de ação: "Perdeu" e "+ Nova licitação"
+     leriam como a mesma coisa. O vinho mantém a carga de alerta e separa os
+     dois papéis — cor de marca ≠ cor de estado. */
+  --danger: #a01f4a;
+  --danger-bg: #fce9ef;
   --shadow: rgba(20, 15, 40, 0.08) 0 2px 8px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -53,8 +67,10 @@ input:focus, select:focus, textarea:focus {
   outline-offset: -1px;
 }
 
+/* Superfícies com texto branco usam --accent-strong: o laranja puro daria
+   2.55:1, ilegível. Ver a nota em :root. */
 .btn-primary {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: white;
   border: none;
   border-radius: 6px;
@@ -62,7 +78,7 @@ input:focus, select:focus, textarea:focus {
   font-weight: 600;
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent-hover);
+  background: var(--accent-strong-hover);
 }
 .btn-primary:disabled {
   opacity: 0.6;
@@ -72,7 +88,7 @@ input:focus, select:focus, textarea:focus {
 .btn-link {
   background: none;
   border: none;
-  color: var(--accent);
+  color: var(--accent-strong);
   padding: 0;
   text-decoration: underline;
 }
@@ -96,44 +112,320 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* ---------- Login ---------- */
+/* Duas colunas: marca à esquerda (escura), formulário à direita (clara).
+   Tracking negativo nos títulos grandes e ~0 no corpo — letra grande lida
+   com espaçamento padrão parece solta. */
 
-.login-page {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.login-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   min-height: 100vh;
 }
 
-.login-card {
-  background: var(--surface);
+/* ----- Painel de marca ----- */
+
+/* O painel escuro é mais largo que a coluna do formulário, como na
+   referência: ele carrega texto corrido e respira melhor; o formulário é
+   estreito por natureza. */
+.login-brand {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 56px 64px;
+  background: #100d18;
+  color: #b9b5c6;
+}
+
+/* Halo da cor de destaque atrás do conteúdo: dá profundidade sem competir
+   com o texto. Fica no ::before para não exigir mais um elemento no DOM. */
+.login-brand::before {
+  content: '';
+  position: absolute;
+  inset: auto -30% -35% -10%;
+  height: 70%;
+  background: radial-gradient(ellipse at 40% 100%, rgba(255, 126, 0, 0.26), transparent 70%);
+  pointer-events: none;
+}
+
+.login-brand > * {
+  position: relative; /* acima do halo */
+}
+
+.login-brand-logo {
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: #b9b5c6;
+}
+
+.login-brand-logo strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Sem max-width apertado: os cartões devem ocupar a largura do painel, como
+   na referência, em vez de ficarem curtos no meio do espaço. */
+.login-brand-body {
+  margin: auto 0;
+  width: 100%;
+  max-width: 620px;
+}
+
+.login-brand-headline {
+  color: #fff;
+  font-size: clamp(30px, 3.4vw, 42px);
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.login-brand-headline span {
+  color: var(--accent-soft);
+}
+
+.login-brand-sub {
+  margin: 16px 0 36px;
+  font-size: 15px;
+  line-height: 1.55;
+  max-width: 40ch;
+}
+
+.login-features {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.login-features li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  /* Entrada escalonada: --i vem do componente. O atraso é curto de propósito
+     — a última chega em 240ms, antes de virar espera. */
+  animation: login-feature-in 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: calc(var(--i) * 60ms + 80ms);
+}
+
+/* Fundo translúcido em vez de sólido: o bloco deixa o painel escuro aparecer
+   por baixo e assenta melhor no cartão. O glifo fica na versão clara da cor,
+   que é o que sustenta o contraste agora que o fundo é fraco. */
+.login-feature-icon {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
   border-radius: 12px;
-  box-shadow: var(--shadow);
-  padding: 40px;
-  width: 340px;
+  background: rgba(255, 126, 0, 0.16);
+  border: 1px solid rgba(255, 126, 0, 0.26);
+  color: var(--accent-soft);
+}
+
+/* Alterna com um tom frio para a lista não virar uma coluna monocromática. */
+.login-features li:nth-child(even) .login-feature-icon {
+  background: rgba(45, 212, 170, 0.12);
+  border-color: rgba(110, 231, 202, 0.2);
+  color: #6ee7ca;
+}
+
+.login-feature-icon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.login-features strong {
+  display: block;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.login-features li span {
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+/* Assinatura da empresa: pílula translúcida com um ponto da cor da marca.
+   Um rodapé em cinza apagado desaparecia; aqui ele se lê como selo. */
+.login-brand-footer {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: #cfcbd9;
+}
+
+.login-brand-footer::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  flex: none;
+}
+
+.login-brand-footer strong {
+  color: #fff;
+  font-weight: 650;
+}
+
+@keyframes login-feature-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+/* ----- Lado do formulário ----- */
+
+.login-form-side {
+  display: grid;
+  place-items: center;
+  padding: 48px 32px;
+  background: var(--surface);
+}
+
+.login-form {
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Logo, título e subtítulo centralizados; os campos seguem alinhados à
+   esquerda, que é como se lê um formulário. */
+.login-form-head {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-form h2 {
+  font-size: 26px;
+  letter-spacing: -0.02em;
+}
+
+.login-form-sub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #6f6a7d;
+}
+
+.login-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  margin-bottom: 16px;
 }
 
-.login-card h1 {
-  font-size: 22px;
+.login-field > span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-h);
+}
+
+.login-field input {
+  padding: 11px 13px;
+  border-radius: 9px;
+  background: #fbfbfc;
+  /* Só cor e sombra animam: são propriedades que o compositor resolve
+     sozinho, sem recalcular layout. */
+  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+}
+
+.login-field input:hover:not(:focus) {
+  border-color: #cfccd6;
+}
+
+/* Anel de foco próprio em vez do outline global: casa com o raio do campo. */
+.login-field input:focus {
+  outline: none;
+  background: var(--surface);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 126, 0, 0.22);
+}
+
+/* Altura reservada: sem isso, o erro empurra o botão para baixo no exato
+   momento em que a pessoa vai clicar de novo. */
+.login-error-slot {
+  min-height: 22px;
   margin-bottom: 4px;
 }
 
-.login-subtitle {
-  color: var(--text);
-  font-size: 13px;
-  margin-bottom: 20px;
+.login-error-slot .form-error {
+  margin-top: 0;
+  animation: login-feature-in 200ms ease-out;
 }
 
-.login-card label {
-  font-size: 13px;
+.login-submit {
+  margin-top: 4px;
+  padding: 12px;
+  border: none;
+  border-radius: 9px;
+  /* Único ponto vermelho da tela: é a ação principal, e a cor a separa de
+     todo o resto, que é laranja. 5.43:1 com texto branco. */
+  background: var(--brand-red);
+  color: #fff;
   font-weight: 600;
-  margin-top: 10px;
+  font-size: 15px;
+  transition: background 140ms ease, transform 100ms ease;
 }
 
-.login-card button {
-  margin-top: 20px;
+.login-submit:hover:not(:disabled) {
+  background: var(--brand-red-hover);
+}
+
+/* Resposta no pressionar, não no soltar: é o que faz o botão parecer vivo. */
+.login-submit:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.login-submit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.login-form-help {
+  margin: 20px 0 0;
+  font-size: 12.5px;
+  color: #8a8697;
+  text-align: center;
+}
+
+/* Abaixo disso o painel de marca empurraria o formulário para fora da tela —
+   e o formulário é o motivo de a pessoa estar aqui. */
+@media (max-width: 900px) {
+  .login-split {
+    grid-template-columns: 1fr;
+  }
+  .login-brand {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-features li,
+  .login-error-slot .form-error {
+    animation: none;
+  }
+  .login-submit:active:not(:disabled) {
+    transform: none;
+  }
 }
 
 .form-error {
@@ -310,7 +602,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .kanban-card-responsavel {
-  background: var(--accent);
+  background: var(--accent-strong);
   color: white;
   border-radius: 999px;
   width: 24px;

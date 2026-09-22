@@ -2,6 +2,19 @@
 
 > Atualizado em: 2026-09-22
 
+## 🔜 Próxima sessão (2026-09-23)
+
+1. **Board — muitas alterações** (o grosso do dia). O usuário traz a lista.
+   A identidade visual já está definida: seguir a tabela de tokens em
+   "Identidade visual e tela de login" e **não** improvisar cores novas.
+2. **PNCP** — só se a operadora de licitações conseguir acessar o portal: o
+   certificado digital estava com a contabilidade em 22/09. O que falta é uma
+   verificação manual de 5 minutos em `pncp.gov.br` — existe **algum**
+   contrato da Lucri publicado? Se não, o PNCP está encerrado (ver seção
+   "PNCP por CNPJ", onde 18 mil contratos varridos deram zero).
+3. **BNC** — parado por decisão: sem exportação e com reCAPTCHA por
+   requisição, resta a entrada manual, que já está no ar.
+
 ## Objetivo do projeto
 
 Centralizar em **um único painel** o acompanhamento das negociações/licitações
@@ -553,6 +566,44 @@ o universo geral de editais — prospecção, fora do escopo.
 
 BLL usa a mesma plataforma do BNC: resolver um resolve os dois.
 
+### 🎨 Identidade visual e tela de login (2026-09-22)
+
+Skills instaladas e usadas: `apple-design`, `transitions.dev`, `emilkowalski`.
+
+**Paleta da marca LUCRI.** Cores amostradas com canvas, não estimadas:
+
+| Token | Valor | Onde | Por quê |
+|---|---|---|---|
+| `--accent` | `#ff7e00` | ícones, foco, halo, headline | laranja da referência do usuário; 7.54:1 sobre o painel escuro |
+| `--accent-strong` | `#a85200` | `.btn-primary`, `.btn-link`, avatar | laranja puro com texto branco dá **2.55:1** — ilegível. Este dá 5.42:1 |
+| `--brand-red` | `#d40f00` | **só** o botão Entrar | único ponto vermelho da tela; 5.43:1 |
+| `--danger` | `#a01f4a` | erros, badge "Perdeu" | era `#d1332f`, quase idêntico ao vermelho de marca: "Perdeu" e "+ Nova licitação" liam como a mesma coisa. Vinho separa **cor de marca de cor de estado** |
+
+⚠️ **Não trocar `--accent` por `--accent-strong` (ou vice-versa) sem verificar
+contraste.** A regra: superfície que carrega texto branco usa o tom escuro;
+glifo/borda/foco sobre fundo escuro usa o puro.
+
+**Tela de login redesenhada** ([LoginPage.tsx](frontend/src/pages/LoginPage.tsx)):
+split 50/50, painel escuro (`#100d18`) à esquerda com headline, quatro cartões
+de feature e rodapé-selo; formulário centralizado à direita.
+
+Decisões que não são estéticas:
+- **Espaço reservado para o erro** (`.login-error-slot`, `min-height`): sem
+  isso a mensagem empurra o botão para baixo no instante em que a pessoa vai
+  clicar de novo.
+- **Tracking negativo** (`-0.03em`) nos títulos grandes — texto grande com
+  espaçamento padrão parece solto (regra da `apple-design`).
+- **Resposta no pressionar** (`:active` com `scale(0.985)`), não no soltar.
+- **`prefers-reduced-motion`** desliga a entrada escalonada dos cartões.
+- Abaixo de 900px o painel some — ele empurraria o formulário para fora da
+  dobra, e o formulário é o motivo da visita.
+
+**Logos:** `logo-lucri-white.png` (fundo escuro) e `logo-lucri-dark.png`
+(fundo claro) estão em `frontend/src/assets/`, mas **não são importadas** — o
+usuário preferiu o texto "Painel de Licitações". Como não há import, não
+entram no build; ficam prontas se mudar de ideia. Originais em
+`frontend/imagens/`.
+
 ### ✅ Tarefa 6 — Frontend: Kanban e autenticação (CONCLUÍDA)
 - Login + rota protegida, sessão via JWT em `localStorage` com refresh automático em 401 ([api/client.ts](frontend/src/api/client.ts)).
 - Board em React + `@dnd-kit` com **5 fases**: Em Análise → Documentação → Proposta Enviada → Em Disputa → **Resultado**.
@@ -595,6 +646,69 @@ upsert limpa a marca. Isso corrigiu 5 licitações que estavam presas em
 ### Decisões de escopo tomadas em 2026-09-17
 - **Coluna "Monitorando" removida** — o painel acompanha só negociações em que a empresa já está participando; prospecção é resolvida por automação de e-mail própria, fora deste sistema.
 - **PNCP desativado** — a API pública do PNCP não informa se a empresa participa, então só traria ruído de prospecção. O adaptador continua no código (`integrations/pncp/`), apenas fora da lista de `PORTAL_ADAPTERS` em [integrations.module.ts](backend/src/integrations/integrations.module.ts). Havia também um bug real: sem `ordenacao=data_publicacao_pncp` a API retorna itens de 2021 primeiro e a paginação parava antes de achar itens recentes (já corrigido no arquivo).
+
+### 🔍 PNCP por CNPJ do fornecedor — investigado e descartado (2026-09-22)
+
+Hipótese testada: usar o PNCP como fonte de **contratos que a empresa
+ganhou**, em qualquer portal — o que cobriria inclusive BNC e BLL, que não
+têm integração possível.
+
+**A API certa existe** e é outra, não a de busca textual:
+```
+GET https://pncp.gov.br/api/consulta/v1/contratos/atualizacao
+    ?dataInicial=AAAAMMDD&dataFinal=AAAAMMDD&pagina=N
+```
+Cada contrato traz **`niFornecedor`** (CNPJ de quem ganhou, 14 dígitos sem
+pontuação), `nomeRazaoSocialFornecedor`, `objetoContrato`, `valorInicial`,
+`orgaoEntidade.razaoSocial`, `processo` e `numeroControlePNCP`. Ou seja: o
+dado que faltava — saber se fomos nós — **está lá**.
+
+**⛔ Mas o parâmetro `niFornecedor` na URL é IGNORADO.** Passando o CNPJ, a
+resposta veio com **368 fornecedores distintos** numa página só. É campo de
+leitura, não filtro. O filtro tem de ser do nosso lado, depois de baixar.
+
+**Custo de varrer** (500 contratos/página, ~6.400 contratos/dia no país):
+
+| Janela | Contratos | Requisições |
+|---|---|---|
+| 30 dias | ~192 mil | 385 |
+| 180 dias | ~1,1 milhão | 2.310 |
+| 1 ano | ~2,3 milhões | 4.684 |
+
+**Rate limit agressivo:** 429/503 constantes, exigindo esperas de 30–120s
+entre lotes. Numa varredura real de 7 dias, o servidor devolveu HTTP 500 na
+página 37 de 130 — ou seja, nem completa de forma confiável.
+
+**Resultado do teste real (CNPJ 17.183.484/0001-54):**
+`18.000 contratos varridos (15–22/09), 0 da empresa.`
+
+Controle feito para descartar bug: filtrando por um CNPJ sabidamente presente
+na mesma resposta, o filtro retorna 1 contrato. **A comparação funciona — o
+zero é real.**
+
+**Por que provavelmente dá zero:** o PNCP recebe os **contratos** assinados
+pelos órgãos, e nem todo resultado de licitação vira contrato publicado lá
+(muitos viram empenho ou ata sem registro individual do fornecedor), além do
+atraso entre a homologação e a publicação. A Caixa Escolar, principal fonte
+da empresa, é programa estadual de MG e não alimenta o PNCP como contrato
+federal.
+
+**Decisão: descartado.** Custo alto (centenas de requisições instáveis),
+retorno nulo no teste. A varredura fica em
+[scripts/pncp_busca_cnpj.sh](scripts/pncp_busca_cnpj.sh) caso se queira
+repetir o teste numa janela maior — mas não vira adaptador sem antes existir
+evidência de que a empresa aparece lá.
+
+**Se for retomado algum dia:** primeiro confirmar **manualmente** em
+`pncp.gov.br` se existe **qualquer** contrato da Lucri publicado. Se não
+existir nenhum, não há o que integrar — e isso se descobre em minutos, sem
+varrer milhões de registros.
+
+**⏳ Pendente (2026-09-22):** a verificação manual no PNCP depende do
+**certificado digital**, que estava em uso pelo setor de contabilidade. A
+previsão é liberar em 23/09, quando a responsável pelo setor de licitações
+poderá entrar no portal e trazer o que foi pedido. Só então se decide se o
+PNCP fica descartado de vez.
 
 ### Tarefa 7 — Deploy: Docker Compose + Docker Swarm (não iniciada)
 - `docker-compose.yml` para desenvolvimento (Postgres + backend + frontend).
