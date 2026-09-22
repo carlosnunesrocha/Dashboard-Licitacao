@@ -471,25 +471,74 @@ aberto e o histórico vive em outra aba; (d) HOMOLOGADO não é o estado final
 visível ao fornecedor. **Testar outras combinações antes de concluir
 qualquer coisa** — começar sem filtro de situação, janela curta.
 
-**O que falta para escrever o adaptador** (só o F12 da operadora resolve,
-uma captura na tela já logada, sem gerar carga no portal):
-1. **Corpo real** do `POST /Proposal/GetProposalsByParams` — os IDs acima são
-   o palpite forte, mas o form pode mandar campos extras (`Offset`,
-   `__RequestVerificationToken`, `Organization`, `Number`).
-2. **Formato da resposta** — a busca pública devolve `{html: "<tr>..."}`
-   (HTML renderizado, não JSON). Se aqui for igual, o adaptador precisa
-   fazer parse de HTML, não `JSON.parse`.
-3. **Nome do cookie de sessão** (a tela de login não emite cookie antes do
-   POST, então só aparece depois de autenticar).
+#### 🧪 Teste com cookie de sessão real (2026-09-22) — ⛔ barrado por reCAPTCHA
 
-**Por que isso muda o quadro:** o login continua bloqueado por reCAPTCHA +
-teclado virtual, mas se a sessão for um cookie simples, vale o mesmo padrão
-do LicitarDigital — a operadora copia o cookie do navegador dela para o
-`.env`, e o sync roda via `curl`. Diferença importante: **cookie de sessão
-ASP.NET expira** (tipicamente 20–30 min de inatividade), ao contrário do JWT
-sem `exp` do LicitarDigital. Se for esse o caso, renovação manual constante
-inviabiliza o sync automático de 6h — e o caminho passa a ser importador de
-planilha, se a tela tiver botão de exportar.
+O usuário copiou o cookie do navegador logado para `BNC_COMPRAS_COOKIE` no
+`.env` e a sonda ([scripts/bnc_sonda.sh](scripts/bnc_sonda.sh)) rodou contra a
+rota real. Resultado em duas partes:
+
+**✅ O cookie autentica.** `GET /Proposal/ProposalSearch` com ele devolve
+**HTTP 200** e a página logada inteira (33 KB). O cookie é simples, um só:
+`BNC=<hex de ~2 KB>`. Sessão não foi obstáculo.
+
+**⛔ Mas a rota de dados exige reCAPTCHA.** O POST devolve **302** para
+`/Base/DataResult?message=Captcha inválido`. Não é expiração — é validação de
+captcha, num passo depois da autenticação.
+
+Lendo o JS da página logada, o mecanismo é:
+
+```js
+ExecuteCaptcha('getProposals').then(function (token) {
+    $.ajax({ type: "Post",
+      url: '/Proposal/GetProposalsByParams?...&token=' + token, ... })
+})
+```
+
+**reCAPTCHA v3 invisível**, sitekey `6LestvomAAAAAG9MNzlBaMEufF1QLdpKoL48qGsq`,
+action `getProposals`. O token é gerado no navegador, é de uso único e vale
+~2 minutos. **Nenhum cookie copiado contorna isso** — e é a mesma trava da
+busca pública (lá a action é `publicSearch`).
+
+**Correções aos parâmetros** (o palpite anterior estava errado em dois pontos,
+conferido no JS real):
+- As datas se chamam **`creationStart`/`creationEnd`**. `DateStart`/`DateEnd`
+  são só os `id` dos inputs na tela.
+- Tudo vai na **query string**, não no corpo. `contentType` é
+  `application/json`, mas o corpo vai vazio.
+- A lista completa: `Organization`, `Number`, `City`, `fkModality`,
+  `fkStatus`, `creationStart`, `creationEnd`, `Offset`, `token`.
+- Paginação: `Offset` é **número de página** (o "carregar mais" faz
+  `offset = parseInt($('#Offset').val(), 10) + 1`), não deslocamento de itens.
+- Resposta esperada: `dataType: "json"`, com `data.html` dentro — ou seja,
+  **JSON envelopando HTML renderizado**. O adaptador vai precisar de parse de
+  HTML das linhas `<tr>`.
+
+**⛔ Conclusão: sync automático do BNC é inviável por esta via.** O reCAPTCHA
+v3 é por requisição e depende de execução de JS no navegador. Copiar cookie
+não resolve; copiar token também não (expira em ~2 min).
+
+**E não há exportação.** O usuário verificou a tela em 2026-09-22: não existe
+botão de baixar arquivo em nenhum formato. Isso elimina o importador de
+planilha, que era o caminho mais curto.
+
+**Situação final do BNC (2026-09-22):** as três portas estão fechadas —
+login automatizado (reCAPTCHA + teclado virtual), API HTTP com cookie
+(reCAPTCHA por requisição) e exportação de arquivo (não existe). O que resta:
+
+1. **Entrada manual** no painel para os processos do BNC — os campos já
+   existem; falta só uma tela de cadastro no frontend. É a única via que não
+   depende de nada do lado do portal. **Recomendado.**
+2. **pydoll dirigindo o navegador logado** — o captcha é v3 invisível (sem
+   clique), então rodaria com a sessão já aberta. Mas o login continua
+   bloqueado pelo teclado virtual, exigindo intervenção humana periódica.
+   Frágil para produção; considerar só se o volume do BNC justificar.
+3. **API oficial de parceiro** — suporte (42) 3026-4555. Única via estável e
+   de baixo esforço nosso, mas depende de o portal aceitar um fornecedor no
+   programa (os parceiros conhecidos são empresas de automação).
+
+⚠️ **Não reabrir** a investigação técnica do BNC sem que algo mude do lado
+deles. Está medido: cookie autentica (200 na página), rota existe e responde,
+e o captcha barra. Não é falta de tentativa.
 
 ⚠️ **Não reabrir:** busca web por documentação do BNC (já feita, nada útil);
 Playwright/pydoll no login (reCAPTCHA Enterprise + teclado virtual ambíguo —
