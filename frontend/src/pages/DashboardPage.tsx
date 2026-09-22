@@ -6,10 +6,12 @@ import type { LicitacoesFilters } from '../types';
 import { FiltersBar } from '../components/FiltersBar';
 import { KanbanBoard } from '../components/KanbanBoard';
 import { LicitacaoModal } from '../components/LicitacaoModal';
+import { NovaLicitacaoModal } from '../components/NovaLicitacaoModal';
 
 export function DashboardPage() {
   const [filters, setFilters] = useState<LicitacoesFilters>({});
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [novaAberta, setNovaAberta] = useState(false);
 
   const licitacoesQuery = useQuery({
     queryKey: ['licitacoes', filters],
@@ -26,6 +28,7 @@ export function DashboardPage() {
         onChange={setFilters}
         meta={metaQuery.data}
         users={usersQuery.data}
+        onNovaLicitacao={() => setNovaAberta(true)}
       />
 
       <div className="dashboard-body">
@@ -43,6 +46,15 @@ export function DashboardPage() {
           />
         )}
       </div>
+
+      {novaAberta && (
+        <NovaLicitacaoModal
+          onClose={() => setNovaAberta(false)}
+          // Abre o card recém-criado: confirma o cadastro e já deixa
+          // adicionar observações sem procurar no board.
+          onCreated={setSelectedId}
+        />
+      )}
 
       {selectedId && <LicitacaoModal id={selectedId} onClose={() => setSelectedId(null)} />}
     </div>

@@ -5,6 +5,7 @@ import type {
   LicitacaoDetail,
   LicitacoesFilters,
   LicitacoesMeta,
+  Portal,
   Resultado,
 } from '../types';
 
@@ -39,6 +40,29 @@ export function moveLicitacao(id: string, status: KanbanStatus, resultado?: Resu
     method: 'PATCH',
     body: { status, resultado },
   });
+}
+
+/**
+ * Cadastro manual — usado por portais sem integração (BNC, BLL), onde o sync
+ * é impossível: reCAPTCHA por requisição e sem exportação. Ver PROGRESS.md.
+ */
+export interface CreateLicitacaoInput {
+  portalOrigem: Portal;
+  externalId: string;
+  orgao: string;
+  objeto: string;
+  modalidade?: string;
+  valorEstimado?: number;
+  dataAbertura?: string;
+  dataLimite?: string;
+  status?: KanbanStatus;
+  responsavelId?: string;
+  urlOriginal?: string;
+  observacoes?: string;
+}
+
+export function createLicitacao(data: CreateLicitacaoInput) {
+  return apiRequest<Licitacao>('/licitacoes', { method: 'POST', body: data });
 }
 
 export interface UpdateLicitacaoInput {

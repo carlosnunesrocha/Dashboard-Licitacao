@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
 import { PORTAL_ADAPTERS } from './integrations.constants.js';
 import type { PortalAdapter, SyncResult } from './types.js';
@@ -28,9 +28,11 @@ export class IntegrationsService {
 
     const adapter = this.adapters.find((a) => a.id === licitacao.portalOrigem);
     if (!adapter?.fetchDetalhes) {
-      throw new BadRequestException(
-        `Portal '${licitacao.portalOrigem}' não suporta busca de detalhes`,
-      );
+      // Sem adaptador não há portal de onde buscar — é o caso das licitações
+      // cadastradas à mão (BNC, BLL), onde o sync é impossível. Devolver o que
+      // está no banco é a resposta correta; lançar erro fazia o modal do card
+      // falhar inteiro e esconder os dados que a operadora acabara de digitar.
+      return licitacao;
     }
     // A exigência das chaves idSubprogram/idSchool/idSupplier é da Caixa
     // Escolar, não de todo portal — validá-la aqui impedia qualquer outro

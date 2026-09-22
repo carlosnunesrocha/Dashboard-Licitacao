@@ -8,11 +8,13 @@ export function FiltersBar({
   onChange,
   meta,
   users,
+  onNovaLicitacao,
 }: {
   filters: LicitacoesFilters;
   onChange: (filters: LicitacoesFilters) => void;
   meta?: LicitacoesMeta;
   users?: User[];
+  onNovaLicitacao?: () => void;
 }) {
   const { user, logout } = useAuth();
   const [busca, setBusca] = useState(filters.busca ?? '');
@@ -67,6 +69,12 @@ export function FiltersBar({
       </div>
 
       <div className="filters-bar-user">
+        {/* Cadastro manual: mesma regra do POST /licitacoes, que é @Roles('admin'). */}
+        {user?.role === 'admin' && onNovaLicitacao && (
+          <button className="btn-primary btn-nova" onClick={onNovaLicitacao}>
+            + Nova licitação
+          </button>
+        )}
         <span>{user?.nome}</span>
         <button className="btn-link" onClick={logout}>
           Sair
