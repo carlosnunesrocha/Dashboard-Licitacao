@@ -1,6 +1,6 @@
 # Progresso — Dashboard Kanban de Monitoramento de Licitações
 
-> Atualizado em: 2026-09-21
+> Atualizado em: 2026-09-22
 
 ## Objetivo do projeto
 
@@ -398,79 +398,55 @@ máquina) + reiniciar a sessão para a skill carregar.
 | **BNC / BLL** | reCAPTCHA Enterprise **+ teclado virtual ambíguo** | **Parcial** — resolve o captcha, não o teclado |
 
 O teclado virtual do BNC não é detecção de bot: cada botão vale dois dígitos
-("6 ou 0"). Nenhum bypasser de WAF muda isso. Por isso a skill **não**
-substitui o caminho da chave de acesso no BNC — ver seção abaixo.
+("6 ou 0"). Nenhum bypasser de WAF muda isso. Por isso a skill **não** abre o
+BNC — ver a seção de recomeço abaixo.
 
-### 🎯 PRÓXIMA SESSÃO (2026-09-22): BNC e BLL
+### 🔄 BNC e BLL — recomeço em 2026-09-22
 
-O LicitarDigital ensinou uma receita que provavelmente se aplica aqui. O que
-o destravou **não foi vencer o login** — foi contorná-lo:
+**A trilha da "chave de acesso" foi abandonada** a pedido do usuário. A chave
+gerada em 18/09 foi revogada e **nunca chegou a ser usada** (nunca foi colada
+no chat, nunca entrou no repositório). Não retomar esse assunto por conta
+própria — se voltar, virá do usuário.
 
-1. **O host da API não era o óbvio.** Supúnhamos `api.licitardigital.com.br`
-   (404 em tudo); era `manager-api.licitardigital.com.br`. Para o BNC, não
-   presumir o host: descobrir.
-2. **O Cloudflare era regra de cabeçalho**, não desafio JS. Testar isso cedo
-   com `curl`: com `Origin`/`Referer`/`User-Agent` de navegador vs. sem.
-3. **O token veio do `localStorage`**, não de login automatizado. O BNC tem
-   algo melhor: uma **chave de acesso já gerada** pelo usuário.
-4. **O bundle JS do SPA entrega as rotas.** `curl` no `index-*.js` e
-   `grep -oE '"/[a-z-]+/[a-zA-Z]+"'` listou 25 rotas do LicitarDigital sem
-   tocar no portal. Fazer o mesmo no BNC antes de qualquer captura manual.
-5. **Node é bloqueado por fingerprint TLS** onde curl e Python passam. Se o
-   BNC também for, a solução já existe: transporte via `curl` (ver
-   `licitar-digital.client.ts`).
+**Situação:** o usuário está levantando **com a operadora da empresa** como se
+chega, na área logada do BNC, às licitações já encaminhadas — e trará esse
+caminho (telas, URLs, como a lista é montada). O trabalho recomeça a partir
+desse material.
 
-⚠️ O login automatizado do BNC continua inviável (reCAPTCHA Enterprise +
-teclado virtual ambíguo). **Não reabrir Playwright nem pydoll no login.**
+#### Reconhecimento externo concluído em 2026-09-22 (não repetir)
 
-**Primeira ação:** o usuário traz URL + print da tela da chave de acesso. Sem
-isso não há endpoint, e chutar rota foi o que queimou tempo em 17/09.
+Tudo que dá para medir de fora, sem sessão, já foi medido:
 
-**Critério de sucesso (inalterado):** a integração só vale se expuser as
-licitações **da empresa**. O `/Process/ProcessSearchPublic` do BNC é acessível
-sem login mas devolve o universo geral — prospecção, fora do escopo.
+| O quê | Resultado |
+|---|---|
+| Plataforma | **ASP.NET MVC clássico**, IIS/10.0, HTML no servidor — **não é SPA** |
+| Bundle JS (`/bundles/JS`, 1 MB) | Só jQuery/DataTables. Rotas próprias: apenas `/Home/GeneratePassword` e `/Home/GetTimeNow`. Zero `integration`/`apikey`/`accesskey` |
+| Subdomínios de API | `api.` `integracao.` `ws.` `webservice.` `integration.` `apiintegracao.` + `api.bnc.org.br` → **todos sem DNS** |
+| Cloudflare | **Não é barreira** — `curl` anônimo passa em tudo. A barreira é só a sessão |
+| Rota de dados pública | `POST /Process/GetProcessByParams` (GET → 404; sem sessão → 302 login) |
+| Parâmetro `token` dessa rota | É **reCAPTCHA** (`ExecuteCaptcha('publicSearch')`), não credencial |
+
+Outras rotas vistas no HTML: `/Process/ProcessView`,
+`/Process/ProcessSearchPublicByLocation`, `/DirectBuy/DirectBuySearchPublic`,
+`/Home/ShowProfiles`, `/Home/UserSessions`,
+`/SignFile/GetPendentSignsByPerson`.
+
+**Conclusão:** como o BNC não é SPA, a receita que destravou o LicitarDigital
+(ler as rotas do bundle JS) **não se aplica**. O que falta é informação
+interna — daí depender da operadora.
+
+⚠️ **Não reabrir:** busca web por documentação do BNC (já feita, nada útil);
+Playwright/pydoll no login (reCAPTCHA Enterprise + teclado virtual ambíguo —
+barreira deliberada); chute de subdomínio ou de rota.
+
+**Critério de sucesso (inalterado):** só vale se expuser as licitações **da
+empresa**. O `/Process/ProcessSearchPublic` é acessível sem login mas devolve
+o universo geral de editais — prospecção, fora do escopo.
+
+**Fallbacks:** (a) suporte BNC Atendimento Fornecedores (42) 3026-4555;
+(b) entrada manual no painel; (c) importador de planilha.
 
 BLL usa a mesma plataforma do BNC: resolver um resolve os dois.
-
-### 🔄 BNC — chave de acesso gerada (aguardando item 1 desde 2026-09-18)
-
-O usuário **já gerou uma chave de acesso** na área logada do BNC. A tela **não
-mostra** link, PDF nem documentação. Parceiros listados nela: **Forseti,
-Wavecode, ConLicitação, Effecti** — empresas comerciais de automação de
-licitações (robô de lances / boletim). Isso indica programa de parceiros
-homologados, não API self-service documentada.
-
-**O que já se tentou e NÃO repetir:**
-- Playwright no login (reCAPTCHA + teclado virtual) — bloqueado.
-- Busca pública de documentação da API do BNC (site, Swagger, manuais dos
-  parceiros, `api.bnc*`) — nada útil. Não vasculhar a web de novo.
-- Chutar endpoints. Sem URL real a chave não serve.
-
-**Método combinado em 2026-09-18 (mais rápido e mais barato):** o usuário,
-logado no **próprio Chrome**, inspeciona e manda o que aparecer. Claude monta
-o adaptador em cima disso. **Não colar a chave no chat** até existir um
-endpoint — sem URL ela não serve e o histórico fica com um segredo.
-
-O que pedir, nesta ordem:
-1. URL completa da tela da chave + texto visível (título, avisos, nome do campo). Print serve.
-2. F12 → Network nessa tela (gerar/copiar/salvar a chave): método, URL, nome do header (`Authorization`, `X-Api-Key`, `token`…). Valor mascarado.
-3. Na lista de processos/propostas **da empresa**: URL da página + 2–3 chamadas do Network ao carregar.
-
-Critério de sucesso: a chave (ou a sessão logada) precisa expor **as
-licitações da empresa** (propostas/resultados). Consulta pública de editais
-não serve — é prospecção.
-
-**A chave em si não está neste repositório nem na memória** — o usuário tem
-na tela do BNC. Não pedir de novo no chat até haver endpoint.
-
-**Status em 2026-09-21:** sessão retomada; o item 1 ainda **não** chegou.
-Próxima ação continua sendo o usuário trazer URL/print da tela da chave.
-Claude não retoma busca web nem Playwright — e a skill pydoll recém-instalada
-não substitui esse caminho (ver seção da skill acima).
-
-Caminhos de fallback se a chave não der nas licitações da empresa: (a)
-suporte BNC Atendimento Fornecedores (42) 3026-4555; (b) entrada manual no
-painel; (c) importador de planilha.
 
 ### ✅ Tarefa 6 — Frontend: Kanban e autenticação (CONCLUÍDA)
 - Login + rota protegida, sessão via JWT em `localStorage` com refresh automático em 401 ([api/client.ts](frontend/src/api/client.ts)).
