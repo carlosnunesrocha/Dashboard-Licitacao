@@ -20,6 +20,13 @@ export interface IntegrationLicitacao {
   valorEstimado?: number;
   dataAbertura?: string;
   dataLimite?: string;
+  /**
+   * Data em que NÓS enviamos a proposta, normalizada entre portais. Separada
+   * de `dataAbertura` porque cada portal guarda uma coisa ali (envio da
+   * proposta na Caixa Escolar, sessão do pregão no LicitarDigital) — e o
+   * dashboard precisa de um campo que signifique o mesmo em todos.
+   */
+  dataProposta?: string;
   urlOriginal?: string;
   /**
    * Quando o portal de origem já informa o andamento real da negociação
@@ -115,13 +122,23 @@ export class LicitacoesService {
    * lista parcialmente escrita.
    */
   async salvarDetalhes(id: string, detalhes: DetalhesLicitacao) {
+    // O que a operadora digitou vence o que o portal devolve: no LicitarDigital
+    // o portal devolve `null` (não expõe a nossa proposta), e sem esta trava o
+    // sync apagaria o valor digitado a cada rodada.
+    const atual = await this.prisma.licitacao.findUnique({
+      where: { id },
+      select: { valorPropostaManual: true },
+    });
+
     await this.prisma.$transaction([
       this.prisma.licitacaoItem.deleteMany({ where: { licitacaoId: id } }),
       this.prisma.licitacao.update({
         where: { id },
         data: {
           detalhamento: detalhes.detalhamento,
-          valorTotalProposta: detalhes.valorTotalProposta,
+          ...(atual?.valorPropostaManual
+            ? {}
+            : { valorTotalProposta: detalhes.valorTotalProposta }),
           empresaVencedora: detalhes.empresaVencedora,
           valorVencedor: detalhes.valorVencedor,
           detalhesSincronizadosEm: new Date(),
@@ -175,6 +192,13 @@ export class LicitacoesService {
 
   async update(id: string, dto: UpdateLicitacaoDto) {
     await this.findOne(id);
+
+    // `undefined` = campo ausente no payload, não mexe. `null` = a operadora
+    // apagou, então limpa o valor E a marca de manual (senão o campo ficaria
+    // vazio e travado contra o sync para sempre).
+    const valorInformado = dto.valorTotalProposta !== undefined;
+    const dataInformada = dto.dataProposta !== undefined;
+
     return this.prisma.licitacao.update({
       where: { id },
       data: {
@@ -187,6 +211,14 @@ export class LicitacoesService {
         urlOriginal: dto.urlOriginal,
         responsavelId: dto.responsavelId,
         observacoes: dto.observacoes,
+        ...(valorInformado && {
+          valorTotalProposta: dto.valorTotalProposta,
+          valorPropostaManual: dto.valorTotalProposta !== null,
+        }),
+        ...(dataInformada && {
+          dataProposta: dto.dataProposta ? new Date(dto.dataProposta) : null,
+          dataPropostaManual: dto.dataProposta !== null,
+        }),
       },
       include: licitacaoInclude,
     });
@@ -203,11 +235,20 @@ export class LicitacoesService {
       });
     }
 
+    // Carimba quando o resultado saiu — é por esta data que o dashboard filtra
+    // "ganhos do mês". Só na ENTRADA em Resultado: trocar Ganhou↔Perdeu depois
+    // não é um resultado novo, e reescrever a data falsearia o relatório.
+    // Para os 891 cards importados em 14/09 não há o que carimbar: a data real
+    // da decisão ficou no portal, que não a expõe.
+    const entrandoEmResultado = dto.status === 'RESULTADO' && licitacao.status !== 'RESULTADO';
+
     return this.prisma.licitacao.update({
       where: { id },
       data: {
         status: dto.status,
         resultado: dto.status === 'RESULTADO' ? (dto.resultado ?? licitacao.resultado) : null,
+        ...(entrandoEmResultado && { dataResultado: new Date() }),
+        ...(dto.status !== 'RESULTADO' && { dataResultado: null }),
         historico: {
           create: {
             statusAnterior: licitacao.status,
@@ -262,6 +303,24 @@ export class LicitacoesService {
    */
   async upsertFromIntegration(portalOrigem: string, data: IntegrationLicitacao) {
     const statusInicial = data.statusSugerido ?? 'EM_ANALISE';
+
+    const existente = await this.prisma.licitacao.findUnique({
+      where: { portalOrigem_externalId: { portalOrigem, externalId: data.externalId } },
+      select: { resultado: true, dataPropostaManual: true },
+    });
+
+    // Só carimba `dataResultado` quando o resultado APARECE numa sincronização
+    // de um card que já acompanhávamos sem resultado — aí sabemos que saiu
+    // agora (com erro de até 6h, o intervalo do sync). Card que chega ao
+    // sistema já resolvido fica com data nula: a decisão é anterior a nós e o
+    // portal não informa quando foi. Inventar a data de hoje faria os 891
+    // cards importados em 14/09 parecerem decididos todos no mesmo dia.
+    const resultadoSaiuAgora = !!data.resultadoSugerido && !!existente && !existente.resultado;
+
+    // Data digitada pela operadora não é sobrescrita pelo portal.
+    const dataDoPortal = data.dataProposta ? new Date(data.dataProposta) : null;
+    const podeGravarData = !existente?.dataPropostaManual;
+
     return this.prisma.licitacao.upsert({
       where: {
         portalOrigem_externalId: { portalOrigem, externalId: data.externalId },
@@ -273,6 +332,7 @@ export class LicitacoesService {
         valorEstimado: data.valorEstimado ?? null,
         dataAbertura: data.dataAbertura ? new Date(data.dataAbertura) : null,
         dataLimite: data.dataLimite ? new Date(data.dataLimite) : null,
+        dataProposta: dataDoPortal,
         portalOrigem,
         externalId: data.externalId,
         urlOriginal: data.urlOriginal,
@@ -292,6 +352,8 @@ export class LicitacoesService {
         valorEstimado: data.valorEstimado ?? null,
         dataAbertura: data.dataAbertura ? new Date(data.dataAbertura) : null,
         dataLimite: data.dataLimite ? new Date(data.dataLimite) : null,
+        ...(podeGravarData && { dataProposta: dataDoPortal }),
+        ...(resultadoSaiuAgora && { dataResultado: new Date() }),
         urlOriginal: data.urlOriginal,
         status: data.statusSugerido,
         resultado: data.resultadoSugerido,

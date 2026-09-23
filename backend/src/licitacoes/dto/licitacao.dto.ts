@@ -92,6 +92,21 @@ export class UpdateLicitacaoDto {
   @IsOptional()
   @IsString()
   observacoes?: string;
+
+  /**
+   * Preenchidos à mão pela operadora nos portais que não expõem a proposta —
+   * hoje LicitarDigital, amanhã BNC/BLL. Gravar qualquer um dos dois marca o
+   * campo como manual, e a partir daí o sync de detalhes não o sobrescreve.
+   * `null` limpa o valor e desfaz a marca.
+   */
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  valorTotalProposta?: number | null;
+
+  @IsOptional()
+  @IsDateString()
+  dataProposta?: string | null;
 }
 
 export class MoveLicitacaoDto {

@@ -4,6 +4,7 @@ import { createLicitacao } from '../api/licitacoes';
 import { listUsers } from '../api/users';
 import { KANBAN_STATUS, KANBAN_STATUS_LABEL, PORTAL_LABEL } from '../types';
 import type { KanbanStatus, Portal } from '../types';
+import { parseValor } from '../utils/valor';
 
 /**
  * Cadastro manual de licitação.
@@ -300,17 +301,3 @@ export function NovaLicitacaoModal({ onClose, onCreated }: Props) {
   );
 }
 
-/**
- * Aceita as duas formas que a operadora pode digitar: "12.345,67" (padrão
- * brasileiro) e "12345.67". Devolve undefined quando não há número, porque o
- * DTO trata o campo como opcional — mandar NaN faria o backend recusar.
- */
-function parseValor(input: string): number | undefined {
-  const limpo = input.replace(/[R$\s]/g, '').trim();
-  if (!limpo) return undefined;
-  const normalizado = limpo.includes(',')
-    ? limpo.replace(/\./g, '').replace(',', '.')
-    : limpo;
-  const num = Number(normalizado);
-  return Number.isFinite(num) ? num : undefined;
-}

@@ -145,6 +145,10 @@ export class CaixaEscolarAdapter implements PortalAdapter {
             modalidade: 'Caixa Escolar – Orçamento Descentralizado',
             dataAbertura: item.dtProposalSubmission ?? undefined,
             dataLimite: item.dtServiceDelivery ?? undefined,
+            // Aqui o portal informa a data de envio da proposta, então
+            // dataProposta vem de graça. No LicitarDigital não há equivalente
+            // e a operadora digita.
+            dataProposta: item.dtProposalSubmission ?? undefined,
             urlOriginal: `${PORTAL_BASE_URL}?status=${statusCode}`,
             statusSugerido: mapping.status,
             resultadoSugerido: mapping.resultado,

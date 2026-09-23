@@ -68,6 +68,13 @@ export function createLicitacao(data: CreateLicitacaoInput) {
 export interface UpdateLicitacaoInput {
   responsavelId?: string | null;
   observacoes?: string;
+  /**
+   * Proposta digitada à mão, para os portais que não a expõem (LicitarDigital,
+   * e BNC/BLL quando entrarem). Enviar `null` limpa o campo e devolve o
+   * controle ao sync; omitir o campo não mexe nele.
+   */
+  valorTotalProposta?: number | null;
+  dataProposta?: string | null;
 }
 
 export function updateLicitacao(id: string, data: UpdateLicitacaoInput) {

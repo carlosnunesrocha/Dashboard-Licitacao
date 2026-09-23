@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getLicitacaoDetalhes, updateLicitacao } from '../api/licitacoes';
 import { listUsers } from '../api/users';
-import { KANBAN_STATUS_LABEL, PORTAL_LABEL } from '../types';
+import { KANBAN_STATUS_LABEL, PORTAIS_SEM_PROPOSTA, PORTAL_LABEL } from '../types';
 import type { LicitacaoDetail, LicitacaoItem } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { dataParaInput, parseValor, valorParaInput } from '../utils/valor';
 
 function toNumber(value?: string | number | null): number | null {
   if (value === null || value === undefined) return null;
@@ -57,12 +58,29 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
 
   const [responsavelId, setResponsavelId] = useState<string | null>(null);
   const [observacoes, setObservacoes] = useState<string | null>(null);
+  // `null` = a operadora não tocou no campo nesta sessão; usa o que veio do
+  // banco. String vazia é diferente: significa que ela apagou de propósito.
+  const [valorProposta, setValorProposta] = useState<string | null>(null);
+  const [dataProposta, setDataProposta] = useState<string | null>(null);
+
+  const semPropostaDoPortal =
+    !!licitacao && PORTAIS_SEM_PROPOSTA.includes(licitacao.portalOrigem);
 
   const updateMutation = useMutation({
     mutationFn: () =>
       updateLicitacao(id, {
         responsavelId: (responsavelId ?? licitacao?.responsavelId) || null,
         observacoes: observacoes ?? licitacao?.observacoes ?? '',
+        // Só entram no payload quando o portal não fornece e a operadora
+        // editou: campo ausente = backend não mexe; null = limpar.
+        ...(semPropostaDoPortal &&
+          valorProposta !== null && {
+            valorTotalProposta: parseValor(valorProposta) ?? null,
+          }),
+        ...(semPropostaDoPortal &&
+          dataProposta !== null && {
+            dataProposta: dataProposta ? new Date(dataProposta).toISOString() : null,
+          }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['licitacao', id] });
@@ -264,7 +282,8 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
             </table>
           )}
           <div className="proposta-total">
-            Valor total do orçamento: <strong>{formatCurrency(licitacao.valorTotalProposta)}</strong>
+            <span>Valor total do orçamento</span>
+            <strong>{formatCurrency(licitacao.valorTotalProposta)}</strong>
           </div>
         </div>
         )}
@@ -282,6 +301,39 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
 
         {isAdmin && (
           <>
+            {semPropostaDoPortal && (
+              <div className="modal-section modal-section-manual">
+                <label>Nossa proposta</label>
+                <p className="campo-ajuda">
+                  O {PORTAL_LABEL[licitacao.portalOrigem]} não expõe a nossa proposta, então
+                  estes dois campos são preenchidos à mão. O dashboard marca o que foi digitado
+                  para não confundir com dado vindo do portal.
+                </p>
+                <div className="campo-duplo">
+                  <div>
+                    <label htmlFor="valor-proposta">Valor da proposta</label>
+                    <input
+                      id="valor-proposta"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="12.345,67"
+                      value={valorProposta ?? valorParaInput(licitacao.valorTotalProposta)}
+                      onChange={(e) => setValorProposta(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="data-proposta">Data de envio da proposta</label>
+                    <input
+                      id="data-proposta"
+                      type="date"
+                      value={dataProposta ?? dataParaInput(licitacao.dataProposta)}
+                      onChange={(e) => setDataProposta(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="modal-section">
               <label htmlFor="responsavel">Responsável</label>
               <select

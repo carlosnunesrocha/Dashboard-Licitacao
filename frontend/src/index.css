@@ -729,6 +729,39 @@ input:focus, select:focus, textarea:focus {
   gap: 12px;
 }
 
+/* Bloco da proposta digitada à mão (portais que não a expõem). A borda
+   laranja à esquerda marca "isto não veio do portal" sem precisar de texto
+   em cada campo. */
+.modal-section-manual {
+  border-left: 3px solid var(--accent);
+  background: #fff8f1;
+  border-radius: 0 6px 6px 0;
+  padding: 12px 14px;
+}
+
+.campo-ajuda {
+  font-size: 12.5px;
+  color: var(--text);
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+.campo-duplo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.campo-duplo input {
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .campo-duplo {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ---------- Coluna Resultado dividida (Ganhou | Perdeu) ---------- */
 
 /* ocupa o espaço de duas colunas no grid do board */
@@ -852,14 +885,30 @@ input:focus, select:focus, textarea:focus {
   font-size: 13px;
 }
 
+/* Mesmo destaque do bloco "Nossa proposta" dos portais sem integração: é o
+   número que a operadora procura primeiro ao abrir o card, e nos dois casos
+   ele precisa saltar igual. A borda laranja marca "valor da nossa proposta",
+   venha ele do portal (Caixa Escolar) ou digitado (LicitarDigital). */
 .proposta-total {
-  margin-top: 10px;
-  text-align: right;
-  font-size: 14px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+  background: #fff8f1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
 }
 
 .proposta-total strong {
   color: var(--text-h);
+  font-size: 19px;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
 }
 
 /* bloco comparativo mostrado quando perdemos */

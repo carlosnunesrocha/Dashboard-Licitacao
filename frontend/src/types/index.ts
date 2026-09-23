@@ -32,6 +32,24 @@ export const PORTAL_LABEL: Record<Portal, string> = {
   'caixa-escolar': 'Caixa Escolar',
 };
 
+/**
+ * Portais que NÃO expõem a nossa proposta (valor e data de envio), onde a
+ * operadora digita os dois à mão.
+ *
+ * - LicitarDigital: a API do painel (`app2`) não traz a proposta; ela vive em
+ *   `app.licitardigital.com.br`, host ainda não mapeado.
+ * - BNC/BLL: sem integração possível — reCAPTCHA a cada requisição.
+ * - PNCP: é registro de contratos públicos, não guarda proposta nossa.
+ *
+ * A Caixa Escolar fica de fora porque entrega os dois no detalhe do orçamento.
+ */
+export const PORTAIS_SEM_PROPOSTA: readonly Portal[] = [
+  'licitar-digital',
+  'bnc-compras',
+  'bll-compras',
+  'pncp',
+];
+
 export const RESULTADO = ['GANHOU', 'PERDEU'] as const;
 export type Resultado = (typeof RESULTADO)[number];
 
@@ -62,6 +80,17 @@ export interface Licitacao {
   responsavelId?: string | null;
   responsavel?: UserSummary | null;
   observacoes?: string | null;
+  /**
+   * Datas normalizadas entre portais — são estas que o dashboard filtra.
+   * `dataAbertura`/`dataLimite` NÃO servem para comparar portais: guardam
+   * coisas diferentes em cada um (ver schema.prisma).
+   */
+  dataProposta?: string | null;
+  /** Nulo quando a decisão é anterior ao sistema: o portal não informa quando saiu. */
+  dataResultado?: string | null;
+  /** Digitado pela operadora, não veio do portal. O dashboard precisa distinguir. */
+  valorPropostaManual: boolean;
+  dataPropostaManual: boolean;
   createdAt: string;
   updatedAt: string;
 }

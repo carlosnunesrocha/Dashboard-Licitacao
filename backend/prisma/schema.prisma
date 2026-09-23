@@ -31,6 +31,11 @@ model Licitacao {
   objeto       String
   modalidade   String?
   valorEstimado Decimal? // @db.Decimal(18, 2) - em Postgres adicionar aqui
+  // ⚠️ dataAbertura/dataLimite guardam coisas DIFERENTES em cada portal:
+  // Caixa Escolar grava dtProposalSubmission/dtDelivery (envio da proposta e
+  // entrega do serviço); LicitarDigital grava auctionStartDate/auctionEndDate
+  // (sessão do pregão). Não servem de filtro comparável entre portais — use
+  // dataProposta/dataResultado abaixo, que são normalizados.
   dataAbertura DateTime?
   dataLimite   DateTime? // prazo para participação
   portalOrigem String // pncp | licitar-digital | bnc-compras | bll-compras | caixa-escolar
@@ -62,10 +67,31 @@ model Licitacao {
   // o card sai do board e não tenta mais buscar detalhes.
   desaparecidoEm DateTime?
 
+  // Datas de negócio, normalizadas entre portais — é por estas que o dashboard
+  // filtra. Ficam separadas de dataAbertura/dataLimite justamente porque
+  // aquelas não têm o mesmo significado em cada portal.
+  dataProposta  DateTime? // quando NÓS enviamos a proposta
+  dataResultado DateTime? // quando o resultado saiu (ganhou/perdeu)
+
+  // Quais destes campos foram digitados pela operadora em vez de virem do
+  // portal. O LicitarDigital não expõe a nossa proposta (vive em app., outro
+  // host não mapeado), então ali valor e data são sempre manuais. O dashboard
+  // precisa da distinção para não misturar dado medido com dado estimado, e o
+  // sync de detalhes usa a marca como trava: não sobrescreve o que foi digitado.
+  valorPropostaManual Boolean @default(false)
+  dataPropostaManual  Boolean @default(false)
+
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
   @@unique([portalOrigem, externalId])
+  // Índices dos campos por onde o dashboard filtra e agrupa. Sem eles cada
+  // filtro varre as 1.042 linhas (e cresce a cada sync).
+  @@index([dataProposta])
+  @@index([dataResultado])
+  @@index([status, resultado])
+  @@index([portalOrigem, status])
+  @@index([desaparecidoEm])
 }
 
 model LicitacaoItem {
