@@ -236,9 +236,23 @@ input:focus, select:focus, textarea:focus {
   color: #6ee7ca;
 }
 
+/* 35px dentro do tile de 44px, glifos com viewBox de 24.
+
+   O problema original era escala, não tamanho: a 22px o fator dava 0,9167 e
+   toda coordenada inteira do desenho caía em fração de pixel (x="3" → 2,75),
+   então o navegador antialiasava a silhueta inteira e o ícone lia como
+   desfocado. 36px (1,5×) resolve no papel, porque cada unidade cai em pixel
+   inteiro ou meio pixel — mas ficava cheio demais no tile, com 4px de folga.
+
+   35px é 1,4583×, fracionário. Escolha visual consciente, validada na tela pelo
+   usuário em 23/09: com o desenho já grande, o antialiasing pesa pouco e a
+   folga de 4,5px assenta melhor. Não é descuido.
+
+   Se for reduzir, 24px é o único tamanho nítido abaixo daqui — e é quase o que
+   havia antes. Se for aumentar, 36px pede o tile em 46px para não sufocar. */
 .login-feature-icon svg {
-  width: 22px;
-  height: 22px;
+  width: 35px;
+  height: 35px;
 }
 
 .login-features strong {

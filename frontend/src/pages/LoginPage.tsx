@@ -11,8 +11,11 @@ import { ApiError } from '../api/client';
 
 /**
  * Ícones inline: quatro glifos não justificam uma dependência de ícones.
- * Preenchidos (não contorno), como os da referência — em 19px o traço fino
- * some contra o fundo colorido.
+ * Preenchidos (não contorno), como os da referência — em tamanho pequeno o
+ * traço fino some contra o fundo colorido.
+ *
+ * O viewBox de 24 é o que manda no tamanho de exibição: ver a nota em
+ * `.login-feature-icon svg` no index.css sobre usar múltiplos limpos de 24.
  */
 const ICONS = {
   kanban: (
