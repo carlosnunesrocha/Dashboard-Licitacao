@@ -9,6 +9,25 @@ import {
 import { ListLicitacoesQueryDto } from './dto/list-licitacoes-query.dto.js';
 
 /**
+ * Detalhe buscado não é o mesmo que detalhe completo.
+ *
+ * Um card em Perdeu sem `empresaVencedora` foi buscado enquanto o orçamento
+ * ainda estava em análise no portal (`budget.status = ANAP`): ali
+ * `idSupplierProposalWinner` é nulo e a lista de concorrentes responde 404 —
+ * ela só passa a existir depois que a escola conclui. "Nossa proposta foi
+ * recusada" e "a escola já escolheu com quem fica" são eventos distintos, e o
+ * primeiro chega antes.
+ *
+ * Sem esta noção, `detalhesSincronizadosEm` carimbado nessa janela congelaria
+ * o card para sempre: quando o vencedor finalmente aparecesse, ninguém voltaria
+ * para buscá-lo, e o dashboard contaria a derrota sem saber para quem.
+ */
+export const DETALHES_INCOMPLETOS = {
+  resultado: 'PERDEU',
+  empresaVencedora: null,
+} satisfies Prisma.LicitacaoWhereInput;
+
+/**
  * Formato normalizado que os adaptadores de integração (PNCP, etc.)
  * produzem ao coletar licitações de cada portal.
  */
@@ -285,6 +304,27 @@ export class LicitacoesService {
       data: { desaparecidoEm: new Date() },
     });
     return count;
+  }
+
+  /**
+   * Cards que ainda não tiveram os detalhes buscados no portal — é deles que
+   * sai o valor da proposta, sem o qual o dashboard mede 4% da realidade.
+   *
+   * Exclui os desaparecidos: saíram do portal, e pedir detalhe deles é bater
+   * numa porta que responde 404.
+   */
+  async idsSemDetalhes(portalOrigem: string, limite?: number): Promise<string[]> {
+    const linhas = await this.prisma.licitacao.findMany({
+      where: {
+        portalOrigem,
+        desaparecidoEm: null,
+        OR: [{ detalhesSincronizadosEm: null }, DETALHES_INCOMPLETOS],
+      },
+      select: { id: true },
+      orderBy: { createdAt: 'asc' },
+      ...(limite ? { take: limite } : {}),
+    });
+    return linhas.map((l) => l.id);
   }
 
   async isPortalItemRegistered(portalOrigem: string, externalId: string): Promise<boolean> {

@@ -17,6 +17,9 @@ function prismaFake(registro: Record<string, unknown> = {}) {
     licitacao: {
       findUnique: vi.fn(async () => registro),
       findFirst: vi.fn(async () => registro),
+      findMany: vi.fn(
+        async (_args: { where?: { OR?: unknown[] } }): Promise<{ id: string }[]> => [],
+      ),
       update,
       upsert: vi.fn(async ({ update: dadosUpdate }: { update: Record<string, unknown> }) => ({
         ...dadosUpdate,
@@ -101,6 +104,23 @@ describe('proposta digitada pela operadora', () => {
 
     const { data } = prisma.update.mock.calls[0][0];
     expect(data.valorTotalProposta).toBe(999);
+  });
+});
+
+describe('detalhe incompleto (Perdeu sem vencedor)', () => {
+  it('a fila do backfill inclui quem foi buscado cedo demais', async () => {
+    // O portal só publica a lista de concorrentes depois de concluir; até lá
+    // o card fica em Perdeu sem vencedor. Se a fila olhasse só
+    // detalhesSincronizadosEm, esse card nunca mais seria buscado.
+    const prisma = prismaFake({});
+
+    await new LicitacoesService(prisma as never).idsSemDetalhes('caixa-escolar');
+
+    const { where } = prisma.licitacao.findMany.mock.calls[0][0]!;
+    expect(where?.OR).toEqual([
+      { detalhesSincronizadosEm: null },
+      { resultado: 'PERDEU', empresaVencedora: null },
+    ]);
   });
 });
 
