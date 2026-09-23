@@ -1,12 +1,19 @@
 # Progresso — Dashboard Kanban de Monitoramento de Licitações
 
-> Atualizado em: 2026-09-22
+> Atualizado em: 2026-09-23
 
-## 🔜 Próxima sessão (2026-09-23)
+## 🔜 Próxima sessão
 
-1. **Board — muitas alterações** (o grosso do dia). O usuário traz a lista.
+1. **Board — muitas alterações** (continua sendo o grosso). O usuário traz a
+   lista; ela não chegou em 23/09 porque o dia virou auditoria de dados.
    A identidade visual já está definida: seguir a tabela de tokens em
    "Identidade visual e tela de login" e **não** improvisar cores novas.
+   ⚠️ O board carrega **todos os cards de uma vez, sem paginação nem filtro de
+   data** ([DashboardPage.tsx](frontend/src/pages/DashboardPage.tsx)). Em
+   23/09: **991 cards no board, 940 deles em Resultado (95%)** — na prática um
+   arquivo morto com quatro colunas de trabalho ao lado, e o número cresce a
+   cada sync. Qualquer mudança que mexa em como as colunas são montadas ou
+   renderizadas esbarra nisso primeiro.
 2. **PNCP** — só se a operadora de licitações conseguir acessar o portal: o
    certificado digital estava com a contabilidade em 22/09. O que falta é uma
    verificação manual de 5 minutos em `pncp.gov.br` — existe **algum**
@@ -14,6 +21,41 @@
    "PNCP por CNPJ", onde 18 mil contratos varridos deram zero).
 3. **BNC** — parado por decisão: sem exportação e com reCAPTCHA por
    requisição, resta a entrada manual, que já está no ar.
+
+### Dúvida em aberto: a coluna Documentação é necessária?
+
+Levantada pelo usuário em 23/09, sem resposta ainda. O que os dados dizem:
+**0 cards nela hoje**, e em 1.069 movimentações registradas apenas **4**
+entraram lá — todas por `admin@exemplo.com`, o usuário de teste. Nenhum
+adaptador coloca card em Documentação (a Caixa Escolar mapeia
+`ENVI → Proposta enviada` e `APRO/RECU → Resultado`; o LicitarDigital omite o
+status de propósito). O mesmo vale para **Em disputa**: 2 movimentações, ambas
+de teste.
+
+**Recomendação: remover** — aguardando resposta da operadora antes de agir
+(decisão do usuário em 23/09, não mexer até lá).
+
+O argumento não é "está vazia", é o propósito do painel: ele existe para
+**diretoria e gerência acompanharem**, não para a operadora tocar o trabalho
+dentro dele. Numa ferramenta de acompanhamento, uma coluna que nenhum portal
+preenche só se enche se alguém lembrar de arrastar o card — e nada disso chega
+a quem está olhando. E é estrutural: não existe caminho automático para
+Documentação e não haverá, porque o BNC (único portal cujo mapa de status tinha
+fases intermediárias) está encerrado.
+
+**A pergunta que decide, e que é para a operadora:** *entre receber o edital e
+enviar a proposta, existe uma etapa de juntar certidões que dura dias e que a
+gerência precisa ver parada no board?* Se sim, a coluna se paga.
+
+Mesmo nesse caso, ela só valeria para os **78 cards do LicitarDigital** — os da
+Caixa Escolar chegam do sync já em Proposta Enviada e nunca passariam por lá.
+
+Se for para mexer nas colunas, **decidir Em Disputa junto** em vez de reabrir o
+assunto depois.
+
+⚠️ Se for removida, **migrar os registros antes**: o board monta as colunas com
+`columns[l.status]?.push(l)` ([KanbanBoard.tsx:84](frontend/src/components/KanbanBoard.tsx:84)),
+e o `?.` faz card de status desconhecido **sumir da tela sem erro nenhum**.
 
 ## Objetivo do projeto
 
@@ -604,6 +646,119 @@ usuário preferiu o texto "Painel de Licitações". Como não há import, não
 entram no build; ficam prontas se mudar de ideia. Originais em
 `frontend/imagens/`.
 
+### 📊 Dados prontos para o dashboard (2026-09-23)
+
+O dia começou com uma pergunta do usuário — "os cards têm data de modificação e
+valor?" — e a resposta foi não, num grau que inviabilizaria o dashboard.
+
+#### A auditoria
+
+| Campo | Caixa Escolar (964) | LicitarDigital (78) |
+|---|---|---|
+| `valorEstimado` | **0%** | **0%** |
+| `valorTotalProposta` | **36 (4%)** | **0%** |
+| `dataAbertura` | 100% | 100% |
+| `dataLimite` | 100% | **0%** |
+
+Os 36 com valor eram exatamente os 36 com `detalhesSincronizadosEm`: **o valor
+só entrava no banco quando alguém clicava no card.** Um dashboard sobre essa
+base mediria 4% da realidade.
+
+#### ⚠️ Armadilhas confirmadas (não repetir a investigação)
+
+**`estimatedValue` NÃO é o valor da compra.** O endpoint `budget` devolve esse
+campo em 100% dos cards e o adaptador nunca gravou — parecia omissão a
+corrigir. Conferido contra propostas conhecidas antes de mapear:
+
+| Card | Nossa proposta | `estimatedValue` |
+|---|---|---|
+| 367424 | R$ 8.163,89 | 274,00 |
+| 365409 | R$ 5.812,50 | 25,00 |
+| 173636 | R$ 5.493,60 | 24,00 |
+
+É outra coisa (unitário ou quantidade). Mapeá-lo pelo nome daria ao painel um
+número errado com cara de certo. **Deixado de fora de propósito.**
+
+**Não existe data de decisão na API da Caixa Escolar.** O único candidato era
+`dtJustification` — **nula em 12 de 12** cards sondados, e o endpoint de
+propostas não tem data nenhuma. Sonda em
+[scripts/caixa_sonda_lote.mjs](scripts/caixa_sonda_lote.mjs).
+
+**`dataAbertura` e `dataLimite` significam coisas diferentes em cada portal:**
+`dtProposalSubmission`/`dtDelivery` na Caixa Escolar (envio da proposta e
+entrega do serviço), `auctionStartDate`/`auctionEndDate` no LicitarDigital
+(sessão do pregão). **Não servem de filtro comparável entre portais.**
+
+#### O que foi feito (commit `f0365fb`)
+
+- **`dataProposta` e `dataResultado`** como campos próprios, normalizados entre
+  portais — é por eles que o dashboard filtra. `dataProposta` já nasceu
+  preenchida nos 964 cards da Caixa Escolar: a migração copia de
+  `dataAbertura`, que sempre foi `dtProposalSubmission` ali. Zero requisições.
+- **`dataResultado` só é carimbada quando o resultado APARECE** num card que já
+  acompanhávamos sem resultado. Card que chega já resolvido fica nulo — a
+  decisão é anterior a nós. Sem essa regra, os 891 importados em 14/09 seriam
+  carimbados de uma vez e o relatório mostraria 891 resultados no mesmo dia.
+- **Proposta digitada à mão** no LicitarDigital (a API do painel não a expõe;
+  ela vive em `app.licitardigital.com.br`, host não mapeado), com marcas
+  `valorPropostaManual`/`dataPropostaManual`. A marca **é a trava** que impede o
+  sync de detalhes — que ali devolve `null` — de apagar o que foi digitado.
+  Limpar o campo derruba a marca junto.
+- **Índices** em `dataProposta`, `dataResultado`, `status+resultado`,
+  `portalOrigem+status`, `desaparecidoEm`.
+
+#### Backfill de detalhes (commit `b195db5`)
+
+Os detalhes deixaram de depender do clique. **Resultado: 966 de 973 cards da
+Caixa Escolar com valor (99%)**, contra 36 (4%).
+
+```bash
+node scripts/backfill_detalhes.mjs caixa-escolar 50 1500
+```
+
+**O ritmo lento é o recurso, não o defeito.** Cada card custa 3 requisições;
+em rajada seria indistinguível de ataque. Pausa de 1,5s com jitter de ±20%.
+
+⚠️ **Três armadilhas que já custaram uma execução cada:**
+1. **Não rodar `npm test` nem salvar arquivo do backend com o backfill em
+   andamento** — o `nest --watch` reinicia a aplicação e derruba a conexão. O
+   script agora espera e refaz o lote, mas perde tempo.
+2. **O access token vale 15 min** e a carga leva 30+. O login é refeito a cada
+   lote por isso.
+3. **Lotes, não chamada única** — 35 min numa requisição HTTP morre em timeout.
+
+#### ⚠️ Detalhe buscado ≠ detalhe completo
+
+Um card em Perdeu **sem `empresaVencedora`** foi buscado enquanto o orçamento
+ainda estava em análise no portal (`budget.status = ANAP`): ali
+`idSupplierProposalWinner` é nulo e a lista de concorrentes responde **404** —
+ela só passa a existir depois que a escola conclui. *"Nossa proposta foi
+recusada"* chega antes de *"a escola escolheu com quem fica"*.
+
+Como `detalhesSincronizadosEm` já ficava carimbado, esses cards **congelavam**:
+o vencedor apareceria no portal e nunca chegaria ao painel. Agora contam como
+detalhe incompleto (`DETALHES_INCOMPLETOS` em
+[licitacoes.service.ts](backend/src/licitacoes/licitacoes.service.ts)), tanto na
+fila quanto na abertura do card. Dos 5 cards nesse estado, **3 já tinham
+vencedor publicado** que nunca teria chegado.
+
+### 🔍 Ícones do login (2026-09-23)
+
+Os ícones do painel lateral pareciam desfocados. **A causa era escala
+fracionária, não tamanho:** `viewBox="0 0 24 24"` renderizado a 22px dá fator
+0,9167, e toda coordenada inteira do desenho caía em fração de pixel
+(`x="3"` → 2,75), fazendo o navegador antialiasar a silhueta inteira.
+
+Glifo agora em **35px** dentro do tile original de 44px. 36px (1,5×) seria o
+valor matematicamente nítido, mas sufocava o tile — sobravam 4px de folga. 35px
+é fracionário (1,4583×), porém com o desenho já grande o antialiasing pesa
+pouco: **o usuário validou na tela em 23/09 e está nítido.** Ao mexer: abaixo
+daqui só 24px é nítido, e acima 36px pede o tile em 46px para não sufocar.
+
+Observação não resolvida: os ícones ímpares são laranja sobre fundo laranja
+translúcido — mesma família de cor no glifo e no fundo também tira definição,
+independente do tamanho.
+
 ### ✅ Tarefa 6 — Frontend: Kanban e autenticação (CONCLUÍDA)
 - Login + rota protegida, sessão via JWT em `localStorage` com refresh automático em 401 ([api/client.ts](frontend/src/api/client.ts)).
 - Board em React + `@dnd-kit` com **5 fases**: Em Análise → Documentação → Proposta Enviada → Em Disputa → **Resultado**.
@@ -612,10 +767,21 @@ entram no build; ficam prontas se mudar de ideia. Originais em
 - Modal do card com os detalhes reais do portal: **1)** detalhamento da solicitação, **2)** itens solicitados (un./qtd./valor de referência), **3)** nossa proposta por item (valor unitário, total, observações, garantia ofertada) + valor total do orçamento. Quando `resultado = PERDEU`, mostra bloco comparativo: nossa proposta vs. nome e valor da empresa vencedora.
 - Filtros por portal, responsável e busca (debounce).
 
-### Detalhes sob demanda (híbrido) — como funciona
-`GET /api/integrations/detalhes/:licitacaoId` — na primeira abertura do card busca no
-portal, persiste no banco (`LicitacaoItem` + campos de detalhe em `Licitacao`) e
-retorna; nas próximas vem direto do banco. Evita um sync de ~2.700 requisições.
+### Detalhes — como funciona (atualizado em 23/09)
+
+`GET /api/integrations/detalhes/:licitacaoId` — busca no portal, persiste no
+banco (`LicitacaoItem` + campos de detalhe em `Licitacao`) e retorna; nas
+próximas vem direto do banco.
+
+⚠️ **Não é mais só sob demanda.** O desenho original evitava as ~2.700
+requisições esperando o clique da operadora — mas isso deixava 96% dos cards
+sem valor da proposta, o que inviabilizava o dashboard. Desde 23/09 há um
+backfill que busca todos em fila lenta (ver "Backfill de detalhes"). A abertura
+do card continua funcionando como antes; ela só raramente tem trabalho a fazer.
+
+**Duas condições fazem o card buscar de novo** em vez de servir o cache:
+`detalhesSincronizadosEm` nulo, **ou** card em Perdeu sem `empresaVencedora`
+(ver "Detalhe buscado ≠ detalhe completo").
 
 Endpoints da Caixa Escolar usados (descobertos via Playwright, exigem
 `idSubprogram`/`idSchool`/`idBudget`/`idSupplier`, salvos no sync):
