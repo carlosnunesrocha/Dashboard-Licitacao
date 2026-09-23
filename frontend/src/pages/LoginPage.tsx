@@ -101,7 +101,7 @@ export function LoginPage() {
           <h1 className="login-brand-headline">
             Suas licitações
             <br />
-            <span>em uma tela só</span>
+            <span>em um só lugar</span>
           </h1>
           <p className="login-brand-sub">
             Diretoria e gerência acompanham todas as negociações sem abrir um portal de cada vez.
