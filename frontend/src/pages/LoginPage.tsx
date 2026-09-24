@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { ApiError } from '../api/client';
 
 /**
@@ -71,7 +72,16 @@ const FEATURES = [
 
 export function LoginPage() {
   const { user, login } = useAuth();
+  const { forcarClaro } = useTheme();
   const navigate = useNavigate();
+
+  // O login tem identidade própria — painel escuro de marca ao lado de
+  // formulário claro — e nunca abre no tema escuro. A preferência da pessoa
+  // fica salva e volta a valer assim que ela entra.
+  useEffect(() => {
+    forcarClaro(true);
+    return () => forcarClaro(false);
+  }, [forcarClaro]);
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [error, setError] = useState<string | null>(null);

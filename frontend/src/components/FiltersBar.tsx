@@ -16,7 +16,7 @@ export function FiltersBar({
   users?: User[];
   onNovaLicitacao?: () => void;
 }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const [busca, setBusca] = useState(filters.busca ?? '');
 
   useEffect(() => {
@@ -29,10 +29,6 @@ export function FiltersBar({
 
   return (
     <div className="filters-bar">
-      <div className="filters-bar-title">
-        <h1>Painel de Licitações</h1>
-      </div>
-
       <div className="filters-bar-controls">
         <input
           type="text"
@@ -68,18 +64,13 @@ export function FiltersBar({
         </select>
       </div>
 
-      <div className="filters-bar-user">
-        {/* Cadastro manual: mesma regra do POST /licitacoes, que é @Roles('admin'). */}
-        {user?.role === 'admin' && onNovaLicitacao && (
-          <button className="btn-primary btn-nova" onClick={onNovaLicitacao}>
-            + Nova licitação
-          </button>
-        )}
-        <span>{user?.nome}</span>
-        <button className="btn-link" onClick={logout}>
-          Sair
+      {/* Cadastro manual: mesma regra do POST /licitacoes, que é @Roles('admin').
+          Nome do usuário e "Sair" vivem na sidebar — aqui só o que é filtro. */}
+      {user?.role === 'admin' && onNovaLicitacao && (
+        <button className="btn-primary btn-nova" onClick={onNovaLicitacao}>
+          + Nova licitação
         </button>
-      </div>
+      )}
     </div>
   );
 }

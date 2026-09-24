@@ -1,8 +1,34 @@
+/*
+ * Tema: os tokens abaixo são o contrato entre as duas aparências. Toda cor da
+ * interface sai daqui — literal solto em regra não segue a troca de tema e
+ * vira texto ilegível no escuro. Ao criar uma cor nova, criar o token junto.
+ *
+ * A regra de contraste vale nos dois temas: superfície que carrega texto
+ * branco usa --accent-strong; glifo, borda e foco sobre fundo escuro usam
+ * --accent puro.
+ */
 :root {
+  color-scheme: light;
+
   --text: #3f3d45;
   --text-h: #08060d;
+  /* Um só cinza para texto secundário. Antes eram três (#918da0, #9a97a3,
+     #83808c) fazendo o mesmo papel em lugares diferentes. */
+  --text-muted: #6f6b7a;
   --bg: #f5f5f7;
   --surface: #ffffff;
+  /* Superfície rebaixada: fundo de coluna do Kanban, cabeçalho de tabela,
+     bloco de detalhamento — o que fica "abaixo" do nível do cartão. */
+  --surface-sunken: #ebeaef;
+  --surface-muted: #f7f6f9;
+  /* Superfície elevada: modal e card aberto. No claro é igual a --surface
+     (o sombreamento já separa); no escuro recebe um cinza mais alto. */
+  --surface-raised: #ffffff;
+  /* Tinte de laranja usado para marcar entrada manual. */
+  --accent-tint: #fff8f1;
+  /* Coluna do Kanban durante o arraste. */
+  --drop-target: #ddd8f5;
+  --overlay: rgba(10, 5, 20, 0.4);
   --border: #e2e1e6;
   /* Laranja da referência (#ff7e00, amostrado do modelo). 7.54:1 sobre o
      painel escuro — é a cor da interface. */
@@ -26,12 +52,110 @@
   --danger-bg: #fce9ef;
   --shadow: rgba(20, 15, 40, 0.08) 0 2px 8px;
 
+  /* Badges de portal: um par bg/fg por portal. No escuro viram fundo
+     translúcido com texto claro — pastel sobre fundo escuro some. */
+  --portal-pncp-bg: #dbeafe;
+  --portal-pncp-fg: #1d4ed8;
+  --portal-caixa-bg: #ede9fe;
+  --portal-caixa-fg: #6d28d9;
+  --portal-licitar-bg: #fef3c7;
+  --portal-licitar-fg: #b45309;
+  --portal-bnc-bg: #dcfce7;
+  --portal-bnc-fg: #15803d;
+  --portal-bll-bg: #fce7f3;
+  --portal-bll-fg: #be185d;
+
+  /* Casca do app. A largura é variável porque a sidebar recolhe. */
+  --sidebar-w: 248px;
+  --sidebar-w-collapsed: 76px;
+  --sidebar-bg: #151515;
+  --sidebar-fg: #b5b5b5;
+  --sidebar-fg-active: #fafafa;
+
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
 
   font: 15px/1.5 var(--sans);
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Tema escuro, em cinzas neutros: #151515 é a base da casca e #282727 é a
+ * superfície elevada (cartão aberto, modal). A diferença entre os dois é o
+ * que faz o conteúdo destacar do fundo sem precisar de borda forte.
+ *
+ * Neutro, não arroxeado: cinza puro não compete com o laranja da marca.
+ */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --text: #c9c9c9;
+  --text-h: #f5f5f5;
+  --text-muted: #8d8d8d;
+  /* Um passo acima do #151515 da sidebar: sem essa diferença as duas camadas
+     viram uma mancha só e a sidebar deixa de ler como estrutura. */
+  --bg: #1b1b1b;
+  --surface: #212121;
+  /* Superfície elevada: modal e card aberto. */
+  --surface-raised: #282727;
+  --surface-sunken: #111111;
+  --surface-muted: #232323;
+  --accent-tint: #2a1c12;
+  --drop-target: #2f2a22;
+  --overlay: rgba(0, 0, 0, 0.7);
+  --border: #333333;
+
+  /* --accent-strong continua sendo a cor de SUPERFÍCIE com texto branco, e
+     por isso NÃO vira laranja puro aqui: #ff7e00 com branco dá 2.55:1, o
+     mesmo erro que o tema claro evita. Só clareia o suficiente para separar
+     do fundo escuro mantendo o texto legível. */
+  --accent-strong: #ad5400;
+  --accent-strong-hover: #c46000;
+  /* Já o laranja usado como TEXTO/glifo sobre fundo escuro pode ser o puro:
+     ali ele é o primeiro plano, não o fundo. */
+  --accent-on-dark: #ff9836;
+
+  --success: #3ec97f;
+  --success-bg: rgba(62, 201, 127, 0.14);
+  --danger: #f2789f;
+  --danger-bg: rgba(242, 120, 159, 0.14);
+  --shadow: rgba(0, 0, 0, 0.5) 0 2px 10px;
+
+  --portal-pncp-bg: rgba(96, 165, 250, 0.16);
+  --portal-pncp-fg: #93c5fd;
+  --portal-caixa-bg: rgba(167, 139, 250, 0.16);
+  --portal-caixa-fg: #c4b5fd;
+  --portal-licitar-bg: rgba(251, 191, 36, 0.16);
+  --portal-licitar-fg: #fcd34d;
+  --portal-bnc-bg: rgba(74, 222, 128, 0.16);
+  --portal-bnc-fg: #86efac;
+  --portal-bll-bg: rgba(244, 114, 182, 0.16);
+  --portal-bll-fg: #f9a8d4;
+
+  /* A sidebar é a cor pedida; o conteúdo ao lado fica um passo acima para
+     que as duas camadas continuem distinguíveis. */
+  --sidebar-bg: #151515;
+  --sidebar-fg: #a8a8a8;
+  --sidebar-fg-active: #fafafa;
+}
+
+/*
+ * A troca de tema não pode ser um estouro de brilho. Transição só nas cores,
+ * e só aqui — pôr `transition: all` global custaria caro em cada hover.
+ */
+body,
+.app-shell,
+.app-sidebar,
+.app-main,
+.kanban-column,
+.kanban-card,
+.modal-card,
+.filters-bar {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease;
 }
 
 * {
@@ -85,10 +209,12 @@ input:focus, select:focus, textarea:focus {
   cursor: default;
 }
 
+/* Texto, não superfície: usa o token de primeiro plano, que no escuro pode
+   ser o laranja claro. Ver a nota sobre --accent-on-dark no bloco dark. */
 .btn-link {
   background: none;
   border: none;
-  color: var(--accent-strong);
+  color: var(--accent-on-dark, var(--accent-strong));
   padding: 0;
   text-decoration: underline;
 }
@@ -133,8 +259,8 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   flex-direction: column;
   padding: 56px 64px;
-  background: #100d18;
-  color: #b9b5c6;
+  background: #151515;
+  color: #b5b5b5;
 }
 
 /* Halo da cor de destaque atrás do conteúdo: dá profundidade sem competir
@@ -156,7 +282,7 @@ input:focus, select:focus, textarea:focus {
   font-size: 19px;
   font-weight: 500;
   letter-spacing: -0.01em;
-  color: #b9b5c6;
+  color: #b5b5b5;
 }
 
 .login-brand-logo strong {
@@ -356,14 +482,14 @@ input:focus, select:focus, textarea:focus {
 .login-field input {
   padding: 11px 13px;
   border-radius: 9px;
-  background: #fbfbfc;
+  background: var(--surface-muted);
   /* Só cor e sombra animam: são propriedades que o compositor resolve
      sozinho, sem recalcular layout. */
   transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
 
 .login-field input:hover:not(:focus) {
-  border-color: #cfccd6;
+  border-color: var(--border);
 }
 
 /* Anel de foco próprio em vez do outline global: casa com o raio do campo. */
@@ -417,7 +543,7 @@ input:focus, select:focus, textarea:focus {
 .login-form-help {
   margin: 20px 0 0;
   font-size: 12.5px;
-  color: #8a8697;
+  color: var(--text-muted);
   text-align: center;
 }
 
@@ -453,10 +579,12 @@ input:focus, select:focus, textarea:focus {
 
 /* ---------- Dashboard shell ---------- */
 
+/* 100% e não 100vh: a página agora vive dentro da casca, que já reserva a
+   altura. Com 100vh o board passaria da dobra pela altura da topbar. */
 .dashboard {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
 }
 
 .dashboard-body {
@@ -512,7 +640,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .kanban-column {
-  background: #ebeaef;
+  background: var(--surface-sunken);
   border-radius: 10px;
   display: flex;
   flex-direction: column;
@@ -521,7 +649,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .kanban-column.is-over {
-  background: #ddd8f5;
+  background: var(--drop-target);
 }
 
 .kanban-column-header {
@@ -553,7 +681,7 @@ input:focus, select:focus, textarea:focus {
 
 .kanban-column-empty {
   text-align: center;
-  color: #9a97a3;
+  color: var(--text-muted);
   font-size: 12px;
   padding: 20px 0;
 }
@@ -612,7 +740,7 @@ input:focus, select:focus, textarea:focus {
 
 .kanban-card-prazo {
   font-size: 11px;
-  color: #83808c;
+  color: var(--text-muted);
 }
 
 .kanban-card-responsavel {
@@ -634,18 +762,18 @@ input:focus, select:focus, textarea:focus {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #eee;
-  color: #555;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 .portal-badge.portal-full {
   font-size: 12px;
 }
-.portal-pncp { background: #dbeafe; color: #1d4ed8; }
-.portal-caixa-escolar { background: #ede9fe; color: #6d28d9; }
-.portal-licitar-digital { background: #fef3c7; color: #b45309; }
-.portal-bnc-compras { background: #dcfce7; color: #15803d; }
-.portal-bll-compras { background: #fce7f3; color: #be185d; }
+.portal-pncp { background: var(--portal-pncp-bg); color: var(--portal-pncp-fg); }
+.portal-caixa-escolar { background: var(--portal-caixa-bg); color: var(--portal-caixa-fg); }
+.portal-licitar-digital { background: var(--portal-licitar-bg); color: var(--portal-licitar-fg); }
+.portal-bnc-compras { background: var(--portal-bnc-bg); color: var(--portal-bnc-fg); }
+.portal-bll-compras { background: var(--portal-bll-bg); color: var(--portal-bll-fg); }
 
 .resultado-badge {
   font-size: 10.5px;
@@ -657,8 +785,8 @@ input:focus, select:focus, textarea:focus {
 .resultado-perdeu { background: var(--danger-bg); color: var(--danger); }
 
 .status-pill {
-  background: #eee;
-  color: #555;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
   font-size: 11px;
   font-weight: 600;
   padding: 2px 8px;
@@ -667,24 +795,55 @@ input:focus, select:focus, textarea:focus {
 
 /* ---------- Modal ---------- */
 
+/*
+ * Tarefa modal: escurece o fundo e empurra a página para trás, deixando claro
+ * que o resto está suspenso. O desfoque materializa junto com a cor — não é
+ * só uma cortina opaca aparecendo.
+ */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(10, 5, 20, 0.4);
+  background: var(--overlay);
+  backdrop-filter: blur(3px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
+  animation: overlay-in 220ms ease-out;
 }
 
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0);
+  }
+}
+
+/*
+ * A superfície chega como material, não como opacidade: escala e desfoque
+ * animam juntos. A curva é a mesma da sidebar — saída rápida, chegada
+ * amortecida, sem repique (isto não veio de um gesto com inércia).
+ */
 .modal-card {
-  background: var(--surface);
-  border-radius: 12px;
-  padding: 24px;
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px;
   width: 520px;
   max-width: 90vw;
   max-height: 85vh;
   overflow-y: auto;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.16),
+    0 24px 48px -12px rgba(0, 0, 0, 0.3);
+  animation: modal-in 320ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
 }
 
 .modal-card.small {
@@ -692,19 +851,54 @@ input:focus, select:focus, textarea:focus {
   text-align: center;
 }
 
+/*
+ * Cabeçalho gruda no topo ao rolar: em 980px de largura e conteúdo longo, o
+ * título e o fechar sairiam de vista logo no primeiro rolar.
+ */
 .modal-header {
+  position: sticky;
+  top: -28px;
+  z-index: 2;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
+  gap: 16px;
+  margin: -28px -28px 16px;
+  padding: 24px 28px 14px;
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  font-size: 20px;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
 }
 
 .modal-close {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
   background: none;
   border: none;
-  font-size: 22px;
+  border-radius: 8px;
+  font-size: 20px;
   line-height: 1;
-  color: var(--text);
+  color: var(--text-muted);
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.modal-close:hover {
+  background: var(--surface-sunken);
+  color: var(--text-h);
+}
+
+/* Resposta no pressionar, não no soltar. */
+.modal-close:active {
+  transform: scale(0.9);
 }
 
 .modal-status-row {
@@ -716,16 +910,24 @@ input:focus, select:focus, textarea:focus {
 }
 
 .modal-section {
-  margin-bottom: 14px;
+  margin-bottom: 22px;
 }
 
+/* Tracking positivo: maiúsculas pequenas ficam apertadas com espaçamento
+   padrão — o oposto da regra que vale para títulos grandes. */
 .modal-section label {
   display: block;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
+  letter-spacing: 0.055em;
   text-transform: uppercase;
-  color: #918da0;
-  margin-bottom: 4px;
+  color: var(--text-muted);
+  margin-bottom: 7px;
+}
+
+.modal-section > p {
+  font-size: 14.5px;
+  color: var(--text-h);
 }
 
 .modal-section textarea {
@@ -748,7 +950,7 @@ input:focus, select:focus, textarea:focus {
    em cada campo. */
 .modal-section-manual {
   border-left: 3px solid var(--accent);
-  background: #fff8f1;
+  background: var(--accent-tint);
   border-radius: 0 6px 6px 0;
   padding: 12px 14px;
 }
@@ -802,7 +1004,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .resultado-subcoluna.is-over {
-  background: #ddd8f5;
+  background: var(--drop-target);
 }
 
 .resultado-subheader {
@@ -839,19 +1041,31 @@ input:focus, select:focus, textarea:focus {
 
 .itens-table th {
   text-align: left;
-  padding: 6px 8px;
-  background: #f0eff3;
-  color: var(--text-h);
-  font-weight: 600;
+  padding: 9px 12px;
+  background: var(--surface-sunken);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   white-space: nowrap;
   position: sticky;
   top: 0;
 }
 
+.itens-table th:first-child { border-radius: 8px 0 0 0; }
+.itens-table th:last-child { border-radius: 0 8px 0 0; }
+
 .itens-table td {
-  padding: 6px 8px;
+  padding: 10px 12px;
   border-top: 1px solid var(--border);
   vertical-align: top;
+}
+
+/* Faixa alternada em vez de borda em toda linha: em tabela larga o olho
+   perde a linha no meio do caminho. */
+.itens-table tbody tr:nth-child(even) {
+  background: var(--surface-muted);
 }
 
 .itens-table .item-descricao {
@@ -893,7 +1107,7 @@ input:focus, select:focus, textarea:focus {
 
 .detalhamento-texto {
   white-space: pre-wrap;
-  background: #f7f6f9;
+  background: var(--surface-muted);
   border-radius: 6px;
   padding: 10px;
   font-size: 13px;
@@ -908,14 +1122,22 @@ input:focus, select:focus, textarea:focus {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 12px;
-  padding: 12px 14px;
+  margin-top: 14px;
+  padding: 14px 16px;
   border-left: 3px solid var(--accent);
-  border-radius: 0 6px 6px 0;
-  background: #fff8f1;
+  border-radius: 0 10px 10px 0;
+  background: var(--accent-tint);
   font-size: 13px;
   font-weight: 600;
   color: var(--text);
+}
+
+.proposta-total strong {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-h);
 }
 
 .proposta-total strong {
@@ -926,27 +1148,36 @@ input:focus, select:focus, textarea:focus {
 }
 
 /* bloco comparativo mostrado quando perdemos */
+/* Comparativo da derrota: é o dado que a gerência procura primeiro quando
+   abre um card perdido, então ganha peso tipográfico e borda de estado. */
 .comparativo-perda {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 16px;
   background: var(--danger-bg);
-  border-radius: 8px;
-  padding: 12px;
-  margin-bottom: 16px;
+  border: 1px solid color-mix(in srgb, var(--danger) 28%, transparent);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 22px;
 }
 
 .comparativo-perda label {
   display: block;
   font-size: 10.5px;
   font-weight: 700;
+  letter-spacing: 0.055em;
   text-transform: uppercase;
-  color: #9a6a68;
-  margin-bottom: 3px;
+  color: var(--danger);
+  margin-bottom: 5px;
 }
 
+/* Tabular: os dois valores ficam em colunas vizinhas e precisam alinhar
+   dígito com dígito para a comparação ser imediata. */
 .comparativo-perda strong {
-  font-size: 14px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
   color: var(--text-h);
 }
 
@@ -954,8 +1185,11 @@ input:focus, select:focus, textarea:focus {
   color: var(--danger);
 }
 
+/* 980px: a tabela de itens tem 6 colunas e sufocava em 760. Acima de ~1100 o
+   .modal-grid de 1fr 1fr começa a esticar demais. max-width: 90vw na classe
+   base já protege telas pequenas. */
 .licitacao-modal {
-  width: 760px;
+  width: 980px;
 }
 
 .historico-list {
@@ -970,7 +1204,7 @@ input:focus, select:focus, textarea:focus {
 
 .historico-meta {
   display: block;
-  color: #918da0;
+  color: var(--text-muted);
   font-size: 11px;
   margin-top: 2px;
 }
@@ -987,7 +1221,7 @@ input:focus, select:focus, textarea:focus {
 
 .form-hint {
   font-size: 12px;
-  color: #918da0;
+  color: var(--text-muted);
   margin: -4px 0 4px;
 }
 
@@ -1038,5 +1272,405 @@ input:focus, select:focus, textarea:focus {
 @media (max-width: 640px) {
   .form-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- Casca do app: sidebar + conteúdo ---------- */
+
+.app-shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ----- Sidebar ----- */
+
+/* Material mais pesado que o conteúdo: a sidebar é camada estrutural e
+   precisa ler como plano separado, não como parte da página. */
+.app-sidebar {
+  flex: 0 0 var(--sidebar-w);
+  width: var(--sidebar-w);
+  display: flex;
+  flex-direction: column;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-fg);
+  overflow: hidden;
+  transition: flex-basis 260ms cubic-bezier(0.32, 0.72, 0, 1),
+              width 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.app-sidebar.is-collapsed {
+  flex-basis: var(--sidebar-w-collapsed);
+  width: var(--sidebar-w-collapsed);
+}
+
+.sidebar-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 16px 10px;
+  min-height: 64px;
+}
+
+.sidebar-toggle {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--sidebar-fg);
+  transition: background 140ms ease, transform 140ms ease;
+}
+
+.sidebar-toggle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--sidebar-fg-active);
+}
+
+/* Resposta no pressionar, não no soltar. */
+.sidebar-toggle:active {
+  transform: scale(0.94);
+}
+
+.sidebar-brand {
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: var(--sidebar-fg-active);
+  white-space: nowrap;
+}
+
+.sidebar-brand strong {
+  font-weight: 650;
+}
+
+.sidebar-nav {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sidebar-item,
+.sidebar-logout {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 12px;
+  border: none;
+  border-radius: 10px;
+  background: none;
+  color: var(--sidebar-fg);
+  font-size: 14.5px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.sidebar-item:hover,
+.sidebar-logout:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--sidebar-fg-active);
+}
+
+.sidebar-item:active,
+.sidebar-logout:active {
+  transform: scale(0.98);
+}
+
+.sidebar-item.is-active {
+  background: rgba(255, 126, 0, 0.16);
+  color: var(--sidebar-fg-active);
+  font-weight: 600;
+}
+
+/* Marca do item ativo: onde estou. Escala em Y para crescer a partir do
+   centro em vez de aparecer inteira de uma vez. */
+.sidebar-item.is-active::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 50%;
+  width: 3px;
+  height: 22px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  transform: translateY(-50%);
+}
+
+.sidebar-item-icon {
+  flex: 0 0 22px;
+  display: grid;
+  place-items: center;
+}
+
+.sidebar-item-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.sidebar-item.is-active .sidebar-item-icon {
+  color: var(--accent);
+}
+
+/* Recolhida: o rótulo sai de cena e o ícone centraliza. Largura vai a zero
+   junto com a opacidade — só opacidade deixaria o texto ocupando espaço e
+   empurrando o ícone. */
+.sidebar-item-label {
+  overflow: hidden;
+  transition: opacity 180ms ease, width 260ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.is-collapsed .sidebar-item-label,
+.is-collapsed .sidebar-brand {
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+.is-collapsed .sidebar-item,
+.is-collapsed .sidebar-logout {
+  justify-content: center;
+  gap: 0;
+  padding-inline: 0;
+}
+
+.is-collapsed .sidebar-head {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.is-collapsed .sidebar-user-info {
+  opacity: 0;
+  width: 0;
+  overflow: hidden;
+}
+
+.is-collapsed .sidebar-user {
+  justify-content: center;
+  gap: 0;
+}
+
+/* ----- Rodapé da sidebar: usuário e sair ----- */
+
+.sidebar-foot {
+  padding: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+}
+
+.sidebar-avatar {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #1a0d00;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sidebar-user-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+  white-space: nowrap;
+  transition: opacity 180ms ease;
+}
+
+.sidebar-user-info strong {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--sidebar-fg-active);
+}
+
+.sidebar-user-info span {
+  font-size: 11.5px;
+  color: var(--sidebar-fg);
+  opacity: 0.75;
+}
+
+/* ----- Área de conteúdo ----- */
+
+.app-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Barra translúcida: o conteúdo corre por baixo em vez de a barra consumir
+   uma faixa opaca. */
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 10px 20px;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(150%);
+  border-bottom: 1px solid var(--border);
+  z-index: 5;
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* ----- Alternador de tema ----- */
+
+.theme-toggle {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+}
+
+.theme-option {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: 999px;
+  background: none;
+  color: var(--text-muted);
+  transition: background 160ms ease, color 160ms ease, transform 140ms ease;
+}
+
+.theme-option svg {
+  width: 16px;
+  height: 16px;
+}
+
+.theme-option:active {
+  transform: scale(0.92);
+}
+
+.theme-option.is-active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: var(--shadow);
+}
+
+/* ---------- Páginas ---------- */
+
+.page {
+  padding: 28px 32px;
+  max-width: 1200px;
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+/* Tracking negativo: título grande com espaçamento padrão parece solto. */
+.page-header h1 {
+  font-size: 26px;
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.page-header p {
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: 14px;
+  max-width: 62ch;
+}
+
+.em-construcao {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 28px;
+  border: 1px dashed var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.em-construcao-selo {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-on-dark, var(--accent-strong));
+  background: var(--accent-tint);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.em-construcao p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  max-width: 60ch;
+}
+
+/* ---------- Preferências de acessibilidade ---------- */
+
+/* Reduced motion não é "sem retorno visual": as cores ainda mudam, só não
+   há deslizamento nem escala. */
+@media (prefers-reduced-motion: reduce) {
+  .app-sidebar,
+  .sidebar-item-label,
+  .sidebar-brand,
+  .sidebar-user-info,
+  body,
+  .app-shell,
+  .app-main,
+  .kanban-column,
+  .kanban-card,
+  .modal-card,
+  .filters-bar {
+    transition: none;
+  }
+
+  .sidebar-item:active,
+  .sidebar-logout:active,
+  .sidebar-toggle:active,
+  .theme-option:active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-topbar {
+    background: var(--bg);
+    backdrop-filter: none;
   }
 }
