@@ -1,6 +1,54 @@
 # Progresso — Dashboard Kanban de Monitoramento de Licitações
 
-> Atualizado em: 2026-09-24
+> Atualizado em: 2026-09-25
+
+## 🔜 Próxima sessão (segunda-feira)
+
+**Retomar por aqui:** a página de Licitações (prospecção Compras MG) está
+funcional só com **dados mock** — falta plugar a API real da Prodemge. É o
+item mais rápido de destravar; o restante do backlog (board, PNCP, BNC,
+coluna Documentação) está detalhado na seção seguinte e não mudou.
+
+1. **Conseguir acesso à API "Transparência" da Prodemge.** O portal
+   `api.prodemge.gov.br/store` exige conta + assinatura da API para liberar
+   qualquer endpoint — tentei ler a documentação sem login e todos os
+   caminhos responderam "API não autorizada". Passos:
+   - Criar conta em `https://api.prodemge.gov.br/store/`.
+   - Assinar a API **Transparência** (é a que expõe compras/licitações).
+   - Gerar uma Application e o token de acesso (subscription key).
+2. Com o token em mãos, me passar para eu trocar o mock em
+   [compras-mg.adapter.ts](backend/src/integrations/compras-mg/compras-mg.adapter.ts)
+   pela chamada HTTP real, já filtrando por MG e pelas 62 palavras-chave
+   (ver `keywordList` em [LicitacoesPage.tsx](frontend/src/pages/LicitacoesPage.tsx)).
+3. A documentação que consegui ler (sem token) descreve 4 endpoints da API:
+   lista de fornecedores, lista de materiais/serviços, lista de itens de
+   material/serviço, e lista de compras (este último aceita `Ano`
+   obrigatório e filtros por órgão/material/item — não achei filtro de
+   palavra-chave livre, então a filtragem por palavras-chave provavelmente
+   terá que ser feita no nosso lado, sobre `nomeMaterialServico`).
+
+## 🛒 Prospecção Compras MG — mock pronto para plugar a API real (2026-09-25)
+
+Nova página **Licitações** deixou de ser "em construção": agora busca
+oportunidades em `GET /integrations/compras-mg/oportunidades` e exibe em
+[ExtendedLicitacaoCard.tsx](frontend/src/components/ExtendedLicitacaoCard.tsx) —
+card mais largo que o do Kanban, em fila vertical, com órgão, badges, valor
+estimado, objeto e modalidade/data no rodapé.
+
+Filtro fixo pedido pelo usuário: só licitações de **Minas Gerais (MG)** e 62
+palavras-chave de papelaria/material de expediente/material escolar (papel
+a4, resma, chamex, caderno, cola, etc. — lista completa em
+`keywordList` dentro de `LicitacoesPage.tsx`).
+
+⚠️ **O adapter [compras-mg.adapter.ts](backend/src/integrations/compras-mg/compras-mg.adapter.ts)
+está com 3 licitações mock**, no mesmo formato que a API real deveria
+devolver. A API pública da Prodemge (`api.prodemge.gov.br`) barrou o acesso
+sem cadastro — ver checklist acima antes de tentar de novo.
+
+O adapter segue o mesmo contrato `PortalAdapter` dos outros portais (PNCP,
+LicitarDigital, Caixa Escolar) e já está registrado em
+[integrations.module.ts](backend/src/integrations/integrations.module.ts), então
+trocar o mock pela chamada real não deve exigir mexer no resto do sistema.
 
 ## 🎨 Casca do app, navegação e tema (2026-09-24, commit `5023aff`)
 
@@ -44,7 +92,7 @@ vencedor alinharem dígito a dígito.
 Motion por CSS, não por mola: recolher a sidebar é **clique, não gesto**.
 `prefers-reduced-motion` desliga deslizamento e escala mantendo as cores.
 
-## 🔜 Próxima sessão
+## 📋 Backlog anterior (board, PNCP, BNC, coluna Documentação)
 
 1. **Board — muitas alterações** (continua sendo o grosso). O usuário traz a
    lista; ela não chegou em 23/09 porque o dia virou auditoria de dados.

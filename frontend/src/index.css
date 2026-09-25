@@ -69,6 +69,8 @@
   --portal-bnc-fg: #15803d;
   --portal-bll-bg: #fce7f3;
   --portal-bll-fg: #be185d;
+  --portal-compras-mg-bg: #e0e7ff;
+  --portal-compras-mg-fg: #4338ca;
 
   /* Casca do app. A largura é variável porque a sidebar recolhe. */
   --sidebar-w: 248px;

@@ -21,6 +21,7 @@ export const PORTAL = [
   'bnc-compras',
   'bll-compras',
   'caixa-escolar',
+  'compras-mg',
 ] as const;
 export type Portal = (typeof PORTAL)[number];
 
@@ -30,6 +31,7 @@ export const PORTAL_LABEL: Record<Portal, string> = {
   'bnc-compras': 'BNC Compras',
   'bll-compras': 'BLL Compras',
   'caixa-escolar': 'Caixa Escolar',
+  'compras-mg': 'Compras MG',
 };
 
 /**

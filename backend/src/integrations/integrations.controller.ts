@@ -16,6 +16,15 @@ export class IntegrationsController {
     return this.integrations.list();
   }
 
+  @Get('compras-mg/oportunidades')
+  async buscarOportunidadesComprasMg() {
+    const adapter = this.integrations['adapters'].find(a => a.id === 'compras-mg');
+    if (!adapter || !('fetchOportunidades' in adapter)) throw new Error('Adapter Compras MG não encontrado');
+
+    const result = await (adapter as any).fetchOportunidades();
+    return { data: result };
+  }
+
   @Roles('admin')
   @Post(':id/sync')
   sync(@Param('id') id: string) {
