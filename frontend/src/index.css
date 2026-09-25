@@ -39,9 +39,14 @@
   --accent-strong: #a85200;
   --accent-strong-hover: #8f4600;
   --accent-soft: #ff7e00;
-  /* Vermelho da marca, reservado ao botão de entrar. */
+  /* Vermelho da marca. Já foi a cor dos botões; hoje sobra para uso
+     decorativo pontual — a ação usa --btn-action. */
   --brand-red: #d40f00;
   --brand-red-hover: #b80c00;
+  /* Cor de ação: todos os botões primários, inclusive o Entrar do login.
+     6.05:1 com texto branco. */
+  --btn-action: #1f883d;
+  --btn-action-hover: #1a7333;
   --success: #1a9e57;
   --success-bg: #e4f8ee;
   /* Vinho, não vermelho. Desde que a marca virou vermelha, um --danger
@@ -191,22 +196,52 @@ input:focus, select:focus, textarea:focus {
   outline-offset: -1px;
 }
 
-/* Superfícies com texto branco usam --accent-strong: o laranja puro daria
-   2.55:1, ilegível. Ver a nota em :root. */
+/* Botão de ação, o mesmo em todo o sistema — inclusive o Entrar do login.
+   6.05:1 com texto branco e constante nos dois temas. */
 .btn-primary {
-  background: var(--accent-strong);
+  background: var(--btn-action);
   color: white;
   border: none;
   border-radius: 6px;
   padding: 10px 18px;
   font-weight: 600;
+  transition: background 140ms ease, transform 140ms ease;
 }
 .btn-primary:hover:not(:disabled) {
-  background: var(--accent-strong-hover);
+  background: var(--btn-action-hover);
+}
+/* Resposta no pressionar, não no soltar. */
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.985);
 }
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/*
+ * Ação secundária (Cancelar). É botão, não link: fica ao lado de outro botão
+ * numa barra de ações, e link ali não parece clicável nem tem a mesma área de
+ * toque. Contorno em vez de preenchido para não disputar com a ação principal.
+ */
+.btn-secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-weight: 600;
+  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
+}
+.btn-secondary:hover:not(:disabled) {
+  background: var(--surface-sunken);
+  border-color: var(--text-muted);
+}
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.btn-secondary:disabled {
+  opacity: 0.6;
 }
 
 /* Texto, não superfície: usa o token de primeiro plano, que no escuro pode
@@ -263,19 +298,12 @@ input:focus, select:focus, textarea:focus {
   color: #b5b5b5;
 }
 
-/* Halo da cor de destaque atrás do conteúdo: dá profundidade sem competir
-   com o texto. Fica no ::before para não exigir mais um elemento no DOM. */
-.login-brand::before {
-  content: '';
-  position: absolute;
-  inset: auto -30% -35% -10%;
-  height: 70%;
-  background: radial-gradient(ellipse at 40% 100%, rgba(255, 126, 0, 0.26), transparent 70%);
-  pointer-events: none;
-}
-
+/* Painel liso, sem halo: o degradê atrás do conteúdo foi removido a pedido
+   do usuário. O `position: relative` nos filhos fica — o painel é
+   `position: relative` e os filhos precisam do próprio contexto de empilhamento
+   para não ficarem atrás de nada que venha a ser posicionado aqui. */
 .login-brand > * {
-  position: relative; /* acima do halo */
+  position: relative;
 }
 
 .login-brand-logo {
@@ -488,16 +516,23 @@ input:focus, select:focus, textarea:focus {
   transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
 }
 
+/*
+ * Hover e foco compartilham o mesmo cinza: duas cores diferentes faziam o
+ * campo mudar de identidade entre passar o mouse e clicar. O anel é uma
+ * sombra suave, não um destaque de cor — o campo em foco não precisa gritar,
+ * só precisa estar claramente separado dos vizinhos.
+ */
 .login-field input:hover:not(:focus) {
-  border-color: var(--border);
+  border-color: #c9c7cf;
+  box-shadow: 0 0 0 3px rgba(127, 124, 138, 0.08);
 }
 
 /* Anel de foco próprio em vez do outline global: casa com o raio do campo. */
 .login-field input:focus {
   outline: none;
   background: var(--surface);
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 126, 0, 0.22);
+  border-color: #b3b0bb;
+  box-shadow: 0 0 0 3px rgba(127, 124, 138, 0.16);
 }
 
 /* Altura reservada: sem isso, o erro empurra o botão para baixo no exato
@@ -519,7 +554,7 @@ input:focus, select:focus, textarea:focus {
   border-radius: 9px;
   /* Único ponto vermelho da tela: é a ação principal, e a cor a separa de
      todo o resto, que é laranja. 5.43:1 com texto branco. */
-  background: var(--brand-red);
+  background: var(--btn-action);
   color: #fff;
   font-weight: 600;
   font-size: 15px;
@@ -527,7 +562,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .login-submit:hover:not(:disabled) {
-  background: var(--brand-red-hover);
+  background: var(--btn-action-hover);
 }
 
 /* Resposta no pressionar, não no soltar: é o que faz o botão parecer vivo. */
@@ -1391,8 +1426,12 @@ input:focus, select:focus, textarea:focus {
   transform: scale(0.98);
 }
 
+/* Item ativo no mesmo cinza do hover, só um pouco mais firme. O vermelho
+   competia com o botão de ação: dois vermelhos na mesma tela disputavam o
+   papel de "o que clicar". O peso da fonte e a barra lateral já dizem qual
+   item é o atual — o fundo não precisa gritar. */
 .sidebar-item.is-active {
-  background: rgba(255, 126, 0, 0.16);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--sidebar-fg-active);
   font-weight: 600;
 }
@@ -1407,7 +1446,7 @@ input:focus, select:focus, textarea:focus {
   width: 3px;
   height: 22px;
   border-radius: 0 3px 3px 0;
-  background: var(--accent);
+  background: var(--sidebar-fg-active);
   transform: translateY(-50%);
 }
 
@@ -1422,8 +1461,10 @@ input:focus, select:focus, textarea:focus {
   height: 20px;
 }
 
+/* Item ativo é todo neutro: o glifo acende para o branco dos rótulos, e a
+   cor de marca fica reservada às ações. */
 .sidebar-item.is-active .sidebar-item-icon {
-  color: var(--accent);
+  color: var(--sidebar-fg-active);
 }
 
 /* Recolhida: o rótulo sai de cena e o ícone centraliza. Largura vai a zero

@@ -1,6 +1,48 @@
 # Progresso — Dashboard Kanban de Monitoramento de Licitações
 
-> Atualizado em: 2026-09-23
+> Atualizado em: 2026-09-24
+
+## 🎨 Casca do app, navegação e tema (2026-09-24, commit `5023aff`)
+
+O painel deixou de ser uma tela só. Agora há uma **casca persistente**
+([AppLayout.tsx](frontend/src/components/layout/AppLayout.tsx)) com sidebar de
+cinco seções — Dashboard, Licitações, Kanban, Relatórios, Configurações — cada
+uma com ícone. **Recolhida, sobram só os ícones** (248px → 76px, estado em
+`localStorage`).
+
+A página antiga virou `KanbanPage` (é o que sempre foi). As outras quatro
+nascem com casca e estado vazio — **Licitações, Relatórios e Settings são
+intencionalmente vazias**, a definir com o usuário.
+
+**Tema claro/escuro** por `data-theme` no `<html>`
+([ThemeContext.tsx](frontend/src/context/ThemeContext.tsx)). Cores pedidas pelo
+usuário: `#151515` na sidebar, `#282727` nas superfícies elevadas (modal).
+
+⚠️ **O trabalho caro não foi o bloco dark — foi tokenizar os ~36 literais**
+espalhados pelo CSS que não seguiriam a troca. Se for criar cor nova, **criar o
+token junto**; literal solto vira texto ilegível no escuro.
+
+⚠️ **Duas armadilhas de contraste, resolvidas por medição:**
+1. **`--accent-strong` NÃO vira laranja puro no escuro.** Ele é cor de
+   *superfície* com texto branco, e `#ff7e00` + branco dá **2.55:1** — o mesmo
+   erro que o tema claro já evitava. Ficou `#ad5400` (5.19:1). O laranja puro
+   foi para **`--accent-on-dark`**, para uso como *texto/glifo* (9.80:1).
+   A regra: **superfície usa o tom escuro, primeiro plano usa o puro.**
+2. Os campos do login ficavam brancos no escuro (literais `#fbfbfc`/`#cfccd6`).
+
+⚠️ **O login NUNCA abre no escuro** — decisão do usuário. Tem identidade
+própria (painel de marca escuro + formulário claro) e perderia contraste. A
+`LoginPage` chama `forcarClaro(true)` enquanto montada; **a preferência da
+pessoa continua salva** e volta a valer ao entrar. Os literais restantes no CSS
+são todos desse painel, e é correto não seguirem o tema.
+
+**Modal do card: 760px → 980px**, com cabeçalho fixo ao rolar (em conteúdo
+longo o título e o fechar saíam de vista), superfície que materializa com
+escala + desfoque, e `tabular-nums` nos valores para nossa proposta e a do
+vencedor alinharem dígito a dígito.
+
+Motion por CSS, não por mola: recolher a sidebar é **clique, não gesto**.
+`prefers-reduced-motion` desliga deslizamento e escala mantendo as cores.
 
 ## 🔜 Próxima sessão
 
