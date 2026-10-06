@@ -67,6 +67,11 @@ model Licitacao {
   // o card sai do board e não tenta mais buscar detalhes.
   desaparecidoEm DateTime?
 
+  // Soft-delete: quando o usuário remove um card do board. Diferente de
+  // desaparecidoEm (que o sync limpa), deletedAt é respeitado pelo sync —
+  // cards com deletedAt não são recriados, mesmo que o portal os retorne.
+  deletedAt DateTime?
+
   // Datas de negócio, normalizadas entre portais — é por estas que o dashboard
   // filtra. Ficam separadas de dataAbertura/dataLimite justamente porque
   // aquelas não têm o mesmo significado em cada portal.

@@ -176,6 +176,55 @@ export class CaixaEscolarAdapter implements PortalAdapter {
     return { portalId: this.id, imported, updated, desaparecidos };
   }
 
+  async fetchOportunidades(palavrasChave: string[]): Promise<any[]> {
+    const user = this.config.get<string>('CAIXA_ESCOLAR_USER');
+    const pass = this.config.get<string>('CAIXA_ESCOLAR_PASS');
+    if (!user || !pass) return [];
+
+    if (!this.sessionCookie) await this.login(user, pass);
+
+    const resultados: any[] = [];
+    let page = 1;
+    let totalPages = 1;
+
+    do {
+      const body = await this.fetchPage('NAEN', page);
+      totalPages = body.meta.totalPages;
+
+      for (const item of body.data) {
+        const escola = fixEncoding(item.schoolName) ?? '';
+        const municipio = fixEncoding(item.countyName) ?? '';
+        const grupo = fixEncoding(item.expenseGroupDescription) ?? '';
+        const textoParaBuscar = `${escola} ${municipio} ${grupo}`.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+        const passou = palavrasChave.length === 0 || palavrasChave.some(kw =>
+          textoParaBuscar.includes(kw.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase())
+        );
+        if (!passou) continue;
+
+        resultados.push({
+          id: String(item.idBudget),
+          externalId: String(item.idBudget),
+          portalOrigem: 'caixa-escolar',
+          orgao: [escola, municipio].filter(Boolean).join(' – '),
+          objeto: `Orçamento nº ${item.nuBudgetOrder} – ${grupo}`,
+          modalidade: 'Caixa Escolar – Orçamento Descentralizado',
+          valorEstimado: null,
+          dataAbertura: item.dtProposalSubmission ?? null,
+          dataLimite: item.dtServiceDelivery ?? null,
+          urlOriginal: 'https://caixaescolar.educacao.mg.gov.br/compras/orcamentos?status=NAEN',
+          status: 'EM_ANALISE',
+          idSubprogram: item.idSubprogram,
+          idSchool: item.idSchool,
+          idSupplier: item.idSupplier,
+        });
+      }
+      page++;
+    } while (page <= totalPages);
+
+    return resultados;
+  }
+
   private async login(user: string, pass: string): Promise<void> {
     const res = await fetch(`${API_BASE}/auth/login`, {
       method: 'POST',

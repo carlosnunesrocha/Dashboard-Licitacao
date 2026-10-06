@@ -18,6 +18,19 @@
   transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
   cursor: pointer;
 }
+.extended-card.compact {
+  gap: 8px;
+  padding: 12px;
+}
+.extended-card.compact .extended-card-orgao {
+  font-size: 14px;
+}
+.extended-card.compact .extended-card-body {
+  font-size: 13px;
+}
+.extended-card.compact .extended-card-info-item {
+  font-size: 12px;
+}
 .extended-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(20, 15, 40, 0.06);

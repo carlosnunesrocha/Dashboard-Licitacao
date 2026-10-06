@@ -92,8 +92,8 @@ export class LicitacoesService {
   constructor(private readonly prisma: PrismaService) {}
 
   async findAll(query: ListLicitacoesQueryDto) {
-    // desaparecidas do portal não aparecem no board (histórico fica no banco)
-    const where: Prisma.LicitacaoWhereInput = { desaparecidoEm: null };
+    // desaparecidas do portal ou soft-deletadas não aparecem no board
+    const where: Prisma.LicitacaoWhereInput = { desaparecidoEm: null, deletedAt: null };
     if (query.status) where.status = query.status;
     if (query.portalOrigem) where.portalOrigem = query.portalOrigem;
     if (query.responsavelId) where.responsavelId = query.responsavelId;
@@ -282,7 +282,10 @@ export class LicitacoesService {
 
   async remove(id: string) {
     await this.findOne(id);
-    await this.prisma.licitacao.delete({ where: { id } });
+    await this.prisma.licitacao.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
   }
 
   /**
@@ -346,8 +349,11 @@ export class LicitacoesService {
 
     const existente = await this.prisma.licitacao.findUnique({
       where: { portalOrigem_externalId: { portalOrigem, externalId: data.externalId } },
-      select: { resultado: true, dataPropostaManual: true },
+      select: { resultado: true, dataPropostaManual: true, deletedAt: true },
     });
+
+    // Card explicitamente removido do board: o sync ignora, não recria.
+    if (existente?.deletedAt) return null;
 
     // Só carimba `dataResultado` quando o resultado APARECE numa sincronização
     // de um card que já acompanhávamos sem resultado — aí sabemos que saiu

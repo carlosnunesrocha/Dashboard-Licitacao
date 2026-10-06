@@ -80,3 +80,7 @@ export interface UpdateLicitacaoInput {
 export function updateLicitacao(id: string, data: UpdateLicitacaoInput) {
   return apiRequest<Licitacao>(`/licitacoes/${id}`, { method: 'PATCH', body: data });
 }
+
+export function deleteLicitacao(id: string) {
+  return apiRequest<void>(`/licitacoes/${id}`, { method: 'DELETE' });
+}

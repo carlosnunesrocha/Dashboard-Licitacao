@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { PORTAL_ADAPTERS } from './integrations.constants.js';
 import type { PortalAdapter, SyncResult } from './types.js';
 import { LicitacoesService } from '../licitacoes/licitacoes.service.js';
+import { RedisService } from '../redis/redis.service.js';
 
 @Injectable()
 export class IntegrationsService {
@@ -14,10 +15,54 @@ export class IntegrationsService {
   constructor(
     @Inject(PORTAL_ADAPTERS) private readonly adapters: PortalAdapter[],
     private readonly licitacoes: LicitacoesService,
+    private readonly redis: RedisService,
   ) {}
 
   list() {
     return this.adapters.map((a) => ({ id: a.id, label: a.label }));
+  }
+
+  /**
+   * Busca oportunidades de um portal com cache Redis (TTL 24h).
+   *
+   * Cache hit: devolve sem scraping. Cache miss: faz o scraping uma vez, salva
+   * no Redis e devolve. Redis offline: fallback direto ao adapter (sem crash).
+   *
+   * Quando um card é promovido ao Kanban (createLicitacao), a chave do cache
+   * deve ser invalidada para a próxima busça trazer o item removido.
+   */
+  async buscarOportunidades(
+    portalId: string,
+    palavrasChave?: string[],
+  ): Promise<unknown[]> {
+    const cacheKey = palavrasChave?.length
+      ? `oportunidades:${portalId}:${palavrasChave.join(',')}`
+      : `oportunidades:${portalId}`;
+
+    const cached = await this.redis.get<unknown[]>(cacheKey);
+    if (cached) {
+      this.logger.log(`Cache hit: ${cacheKey}`);
+      return cached;
+    }
+
+    const adapter = this.adapters.find((a) => a.id === portalId);
+    if (!adapter || !('fetchOportunidades' in adapter)) return [];
+
+    this.logger.log(`Cache miss: ${cacheKey} — fazendo scraping no portal`);
+    const result = await (adapter as any).fetchOportunidades(palavrasChave);
+    await this.redis.set(cacheKey, result, 86400);
+    return result;
+  }
+
+  /** Invalida o cache de oportunidades de um portal após uma promoção ao Kanban. */
+  async invalidarCacheOportunidades(portalId: string): Promise<void> {
+    const pattern = `oportunidades:${portalId}:*`;
+    const keys = await this.redis.keys(pattern);
+    const exactKey = `oportunidades:${portalId}`;
+    if (keys.length > 0 || (await this.redis.get(exactKey)) !== null) {
+      await this.redis.del([...keys, exactKey]);
+      this.logger.log(`Cache invalidado para ${portalId}: ${keys.length + 1} chave(s)`);
+    }
   }
 
   /**

@@ -7,6 +7,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { UsersModule } from './users/users.module.js';
 import { LicitacoesModule } from './licitacoes/licitacoes.module.js';
 import { IntegrationsModule } from './integrations/integrations.module.js';
+import { RedisModule } from './redis/redis.module.js';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard.js';
 import { RolesGuard } from './auth/guards/roles.guard.js';
 import { SyncJob } from './jobs/sync.job.js';
@@ -20,6 +21,7 @@ import { SyncJob } from './jobs/sync.job.js';
     UsersModule,
     LicitacoesModule,
     IntegrationsModule,
+    RedisModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

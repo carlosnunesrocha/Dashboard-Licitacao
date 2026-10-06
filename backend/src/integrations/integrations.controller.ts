@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post } from '@nestjs/common';
+import { Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { IntegrationsService } from './integrations.service.js';
 import { Roles } from '../auth/decorators/roles.decorator.js';
 
@@ -18,10 +18,14 @@ export class IntegrationsController {
 
   @Get('compras-mg/oportunidades')
   async buscarOportunidadesComprasMg() {
-    const adapter = this.integrations['adapters'].find(a => a.id === 'compras-mg');
-    if (!adapter || !('fetchOportunidades' in adapter)) throw new Error('Adapter Compras MG não encontrado');
+    const result = await this.integrations.buscarOportunidades('compras-mg');
+    return { data: result };
+  }
 
-    const result = await (adapter as any).fetchOportunidades();
+  @Get('caixa-escolar/oportunidades')
+  async buscarOportunidadesCaixaEscolar(@Query('q') q?: string) {
+    const palavrasChave = q ? q.split(',').map(s => s.trim()).filter(Boolean) : [];
+    const result = await this.integrations.buscarOportunidades('caixa-escolar', palavrasChave);
     return { data: result };
   }
 

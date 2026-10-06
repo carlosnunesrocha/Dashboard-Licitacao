@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getLicitacaoDetalhes, updateLicitacao } from '../api/licitacoes';
+import { deleteLicitacao, getLicitacaoDetalhes, updateLicitacao } from '../api/licitacoes';
 import { listUsers } from '../api/users';
 import { KANBAN_STATUS_LABEL, PORTAIS_SEM_PROPOSTA, PORTAL_LABEL } from '../types';
 import type { LicitacaoDetail, LicitacaoItem } from '../types';
@@ -85,6 +85,14 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['licitacao', id] });
       queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteLicitacao(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['licitacoes'] });
+      onClose();
     },
   });
 
@@ -369,6 +377,25 @@ export function LicitacaoModal({ id, onClose }: { id: string; onClose: () => voi
             </button>
             {updateMutation.isError && (
               <div className="form-error">Falha ao salvar. Tente novamente.</div>
+            )}
+
+            <button
+              className="btn-danger"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Remover "${licitacao.orgao}" do Kanban? Esta ação não pode ser desfeita.`,
+                  )
+                ) {
+                  deleteMutation.mutate();
+                }
+              }}
+              disabled={deleteMutation.isPending || updateMutation.isPending}
+            >
+              {deleteMutation.isPending ? 'Removendo...' : 'Remover card'}
+            </button>
+            {deleteMutation.isError && (
+              <div className="form-error">Falha ao remover. Tente novamente.</div>
             )}
           </>
         )}

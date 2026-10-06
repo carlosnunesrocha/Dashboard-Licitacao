@@ -6,12 +6,14 @@ import './ExtendedLicitacaoCard.css';
 export function ExtendedLicitacaoCard({
   licitacao,
   onClick,
+  compact,
 }: {
   licitacao: Licitacao;
   onClick: () => void;
+  compact?: boolean;
 }) {
   return (
-    <div className="extended-card" onClick={onClick}>
+    <div className={`extended-card${compact ? ' compact' : ''}`} onClick={onClick}>
       <div className="extended-card-header">
         <div className="extended-card-title-group">
           <div className="extended-card-orgao">{licitacao.orgao}</div>

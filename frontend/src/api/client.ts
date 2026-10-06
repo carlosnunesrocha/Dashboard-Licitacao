@@ -67,7 +67,9 @@ interface RequestOptions {
 }
 
 function buildUrl(path: string, query?: Record<string, string | undefined>) {
-  const url = new URL(`${BASE_URL}${path}`);
+  // A origem como base permite VITE_API_URL relativo ("/api") em produção,
+  // com frontend e API no mesmo domínio atrás do Traefik.
+  const url = new URL(`${BASE_URL}${path}`, window.location.origin);
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined && value !== '') url.searchParams.set(key, value);
